@@ -177,10 +177,12 @@ body {
         print-color-adjust: exact !important; 
     }
     
-    /* Hide everything by default */
     #mainApp, #authScreen, #openChatBtn, #chatWidget, #pdfLoadingOverlay, 
-    nav, header, button, .modal, .fixed, .sticky { 
+    nav, header, button, .modal, .fixed, .sticky, footer { 
         display: none !important; 
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
     }
     
     /* Show ONLY the active report container */
@@ -194,12 +196,17 @@ body {
         display: block !important; 
         visibility: visible !important; 
         opacity: 1 !important;
-        position: relative !important; 
+        position: absolute !important; 
+        top: 0 !important;
+        left: 0 !important;
         width: 100% !important; 
+        height: auto !important;
+        overflow: visible !important;
         max-width: none !important;
         margin: 0 !important;
         padding: 0 !important;
         background: white !important;
+        z-index: 99999 !important;
     }
 
     /* Force black text for everything inside the report */

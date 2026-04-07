@@ -119,6 +119,7 @@ const renderSettings = (settings) => {
 
     renderChips('categoryList', userCategories, 'categories');
     renderChips('accountList', userAccounts, 'accounts');
+    renderChips('accountingBookList', userAccountingBooks, 'accountingBooks');
 
     const catsExp = userCategories.filter(c => !['Transferencia','Saldo Inicial'].includes(c));
     populateSelectOptions('category', catsExp);
@@ -163,7 +164,63 @@ const renderDashboard = () => {
     renderCashFlowChart(allUserTransactions);
     renderAccountsSummary();
     updateDashboardAnalytics();
+    updateDashboardFuelMetrics(allUserTransactions);
     renderUpcomingPayments(allRecurringItems);
+};
+
+const updateDashboardFuelMetrics = (txs) => {
+    const fuelTxs = txs.filter(t => t.category === 'Combustible' && !t.description.toLowerCase().includes('peaje')).sort((a,b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
+    if (fuelTxs.length < 2) return;
+
+    const kmRegex = /(\d{1,3}(?:\.?\d{3})*|\d+)\s*km/i;
+    const lRegex = /(\d+[.,]\d+|\d+)\s*(?:l|litros|litro)/i;
+
+    const parseData = (t) => {
+        const text = `${t.description} ${t.notes || ''}`.toLowerCase();
+        const kmMatch = text.match(kmRegex);
+        const lMatch = text.match(lRegex);
+        return {
+            km: kmMatch ? parseInt(kmMatch[1].replace(/\./g, '')) : null,
+            liters: lMatch ? parseFloat(lMatch[1].replace(',', '.')) : null
+        };
+    };
+
+    // 1. Media Histórica
+    let totalLiters = 0, totalKm = 0, totalCost = 0;
+    const processed = fuelTxs.map(t => ({ ...t, ...parseData(t) }));
+    
+    // Para la media, necesitamos la diferencia entre el primer y el último registro con KM
+    const withKm = processed.filter(p => p.km !== null);
+    if (withKm.length < 2) return;
+    
+    const firstWithKm = withKm[0];
+    const lastWithKm = withKm[withKm.length - 1];
+    totalKm = lastWithKm.km - firstWithKm.km;
+    
+    // Sumar litros de todos menos el último (el último marca el fin del trayecto anterior)
+    const recordsForSum = processed.filter(p => p.date?.seconds >= firstWithKm.date?.seconds && p.date?.seconds < lastWithKm.date?.seconds);
+    totalLiters = recordsForSum.reduce((s, r) => s + (r.liters || 0), 0);
+    totalCost = recordsForSum.reduce((s, r) => s + r.amount, 0);
+
+    if (totalKm > 0 && totalLiters > 0) {
+        const avgL100 = (totalLiters / totalKm) * 100;
+        const avgE100 = (totalCost / totalKm) * 100;
+        
+        document.getElementById('dashFuelLiters').textContent = `${avgL100.toFixed(1)}L`;
+        document.getElementById('dashFuelEuros').textContent = `${avgE100.toFixed(2)}€`;
+        
+        // 2. Último Repostaje (comparativa directa)
+        const reversed = [...processed].reverse();
+        const latest = reversed.find(r => r.km !== null && r.liters !== null);
+        const previous = reversed.find(r => r.km !== null && r.date?.seconds < latest.date?.seconds);
+        
+        if (latest && previous) {
+            const lKm = latest.km - previous.km;
+            const lAvg = (latest.liters / lKm) * 100;
+            const diff = ((lAvg - avgL100) / avgL100) * 100;
+            document.getElementById('dashFuelLitersComp').innerHTML = `Último: ${lAvg.toFixed(1)}L <span class="${diff > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diff > 0 ? '+' : ''}${diff.toFixed(1)}%)</span>`;
+        }
+    }
 };
 
 const updateDashboardAnalytics = () => {
@@ -444,6 +501,11 @@ document.getElementById('accountForm').addEventListener('submit', async (e) => {
     const v = document.getElementById('newAccount').value.trim();
     const b = document.getElementById('initialBalance').value;
     if (v) { await addSetting(userId, 'accounts', v, b); document.getElementById('newAccount').value = ''; document.getElementById('initialBalance').value = '0'; showSaveToast('Cuenta'); }
+});
+document.getElementById('accountingBookForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = document.getElementById('newAccountingBook').value.trim();
+    if (v) { await addSetting(userId, 'accountingBooks', v); document.getElementById('newAccountingBook').value = ''; showSaveToast('Libro Contable'); }
 });
 
 // Filters & Export

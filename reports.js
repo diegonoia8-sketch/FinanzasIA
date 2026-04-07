@@ -455,8 +455,8 @@ ${getPDFStyles()}
 
         waitForRender(() => {
             window.print();
-            setTimeout(cleanupPrintView, 500);
-        }, 800);
+            setTimeout(cleanupPrintView, 800);
+        }, 1200);
 
     } catch (err) {
         alert("Error al generar reporte: " + err.message);
@@ -568,8 +568,8 @@ ${txs.some(t => t.receiptImage) ? `
 
         waitForRender(() => {
             window.print();
-            setTimeout(cleanupPrintView, 500);
-        }, 800);
+            setTimeout(cleanupPrintView, 800);
+        }, 1200);
 
         return txsWithImages;
 
@@ -705,8 +705,8 @@ ${getPDFStyles()}
 
         waitForRender(() => {
             window.print();
-            setTimeout(cleanupPrintView, 500);
-        }, 800);
+            setTimeout(cleanupPrintView, 800);
+        }, 1200);
 
     } catch (err) {
         alert("Error al generar reporte: " + err.message);
