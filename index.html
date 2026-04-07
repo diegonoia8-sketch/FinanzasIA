@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial AI v2</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="styles.css">
     
     <!-- PWA & IOS -->
     <link rel="manifest" href="manifest.json">
@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="FinanzasIA">
-    <link rel="apple-touch-icon" href="assets/img/icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
@@ -567,6 +567,6 @@
     window.addEventListener('error', e => { const b = document.getElementById('jsBanner'); if(b){ b.textContent='⚠️ '+e.message+' ('+e.filename+':'+e.lineno+')'; b.classList.remove('hidden'); }});
     window.addEventListener('unhandledrejection', e => { const b = document.getElementById('jsBanner'); if(b){ b.textContent='⚠️ '+( e.reason?.message||JSON.stringify(e.reason)); b.classList.remove('hidden'); }});
 </script>
-<script type="module" src="assets/js/app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
