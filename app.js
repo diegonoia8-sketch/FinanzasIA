@@ -83,10 +83,21 @@ const setupRealtimeListeners = (uid) => {
         renderUpcomingPayments(items);
         populateSelectOptions('recurringCategory', userCategories.filter(c => !['Transferencia','Saldo Inicial'].includes(c)));
         populateSelectOptions('recurringAccount', userAccounts);
-        // Recurring category/account fill on recurring form
+        // Listeners para activar/desactivar y eliminar
+        document.querySelectorAll('.toggle-active-recurring').forEach(toggle => 
+            toggle.addEventListener('change', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                const active = e.currentTarget.checked;
+                const updateData = { active };
+                if (active) updateData.lastActivatedAt = serverTimestamp();
+                await updateDoc(doc(db, dbCollections.recurring, id), updateData);
+                showInfoToast(active ? 'Suscripción activada' : 'Suscripción pausada');
+            })
+        );
+
         document.querySelectorAll('.delete-recurring').forEach(btn =>
             btn.addEventListener('click', async (e) => {
-                if (confirm('¿Eliminar suscripción?')) {
+                if (confirm('¿Eliminar suscripción permanentemente?')) {
                     await deleteDoc(doc(db, dbCollections.recurring, e.currentTarget.dataset.id));
                     showDeleteToast();
                 }

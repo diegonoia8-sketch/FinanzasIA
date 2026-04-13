@@ -65,13 +65,25 @@ export const renderRecurringList = (items) => {
         const today = new Date().getDate();
         const daysUntil = item.day >= today ? item.day - today : (31 - today + item.day);
         const urgency = daysUntil <= 3 ? 'text-red-500 font-bold' : daysUntil <= 7 ? 'text-amber-500 font-semibold' : 'text-gray-400';
-        return `<tr class="text-sm border-b border-gray-50 last:border-0">
-            <td class="py-4 font-medium text-gray-800">${item.name}</td>
-            <td class="py-4 font-bold text-indigo-600">${item.amount?.toFixed(2)}€</td>
-            <td class="py-4 ${urgency}">Día ${item.day} <span class="text-xs font-normal">(en ${daysUntil}d)</span></td>
-            <td class="py-4"><span class="bg-gray-100 px-2 py-1 rounded-full text-[10px] font-bold uppercase text-gray-500">${item.category || 'Varios'}</span></td>
+        const isActive = item.active !== false; // Active by default if not specified
+
+        return `<tr class="text-sm border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition">
+            <td class="py-4">
+                <p class="font-bold text-gray-800">${item.name}</p>
+                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">${item.category || 'Varios'}</p>
+            </td>
+            <td class="py-4 font-black text-indigo-600">${item.amount?.toFixed(2)}€</td>
+            <td class="py-4 ${urgency} whitespace-nowrap">Día ${item.day} <span class="text-[10px] font-normal block opacity-70">en ${daysUntil}d</span></td>
+            <td class="py-4">
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" class="sr-only peer toggle-active-recurring" data-id="${item.id}" ${isActive ? 'checked' : ''}>
+                    <div class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                </label>
+            </td>
             <td class="py-4 text-right">
-                <button class="delete-recurring text-red-300 hover:text-red-500 transition" data-id="${item.id}">×</button>
+                <button class="delete-recurring bg-red-50 text-red-500 p-2 rounded-lg hover:bg-red-500 hover:text-white transition" data-id="${item.id}" title="Eliminar definitivamente">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
             </td>
         </tr>`;
     }).join('');
@@ -107,21 +119,37 @@ export const renderUpcomingPayments = (items) => {
 export const checkAndRegisterRecurring = async (userId, recurringItems, transactions) => {
     const today = new Date();
     const todayDay = today.getDate();
-    const month = today.getMonth();
-    const year = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
     const registered = [];
 
     for (const item of recurringItems) {
-        if (item.day !== todayDay) continue;
+        // Solo procesar si está activa
+        if (!item.active) continue;
 
-        // Check if already registered this month
+        // El registro ocurre si hoy es el día o si ya ha pasado este mes (catch-up)
+        if (item.day > todayDay) continue;
+
+        // Comprobar si ya se registró este mes
         const alreadyDone = transactions.some(t => {
             const d = t.date?.toDate?.();
-            return d && d.getMonth() === month && d.getFullYear() === year &&
+            return d && d.getMonth() === currentMonth && d.getFullYear() === currentYear &&
                 t.description?.includes(item.name) && t.category === (item.category || 'Facturas');
         });
 
         if (!alreadyDone) {
+            // Lógica de "No registrar si se activó después del día de vencimiento este mes"
+            if (item.lastActivatedAt) {
+                const activationDate = item.lastActivatedAt.toDate();
+                const theoreticalDateThisMonth = new Date(currentYear, currentMonth, item.day);
+                // Si la activación fue después del día en que debía cobrarse este mes, ignoramos hasta el mes que viene
+                if (activationDate > theoreticalDateThisMonth) {
+                    continue; 
+                }
+            }
+
+            const theoreticalDate = new Date(currentYear, currentMonth, item.day);
+            
             await addDoc(collection(db, dbCollections.transactions), {
                 type: 'expense',
                 description: `🔄 ${item.name} (automático)`,
@@ -129,7 +157,7 @@ export const checkAndRegisterRecurring = async (userId, recurringItems, transact
                 category: item.category || 'Facturas',
                 account: item.account || '',
                 accountingBook: 'Principal',
-                date: new Date(),
+                date: theoreticalDate, // Registro con la fecha teórica
                 userId,
                 createdAt: serverTimestamp(),
                 isRecurring: true

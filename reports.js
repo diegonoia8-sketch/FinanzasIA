@@ -166,170 +166,170 @@ export const calculateFuelMetrics = (transactions, startDate, endDate, category 
 
 const getPDFStyles = () => `
 <style>
-    @page { margin: 1.5cm; size: A4; }
+    @page { margin: 1cm; size: A4; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         color: #1f2937;
         background: #fff;
-        line-height: 1.5;
-        font-size: 11pt;
+        line-height: 1.4;
+        font-size: 10pt;
+        width: 100%;
     }
     .header {
         background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         color: white;
-        padding: 2rem;
-        margin: -1.5cm -1.5cm 1.5rem -1.5cm;
-        width: calc(100% + 3cm);
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+        border-radius: 0 0 20px 20px;
     }
-    .header h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 0.3rem; }
-    .header .subtitle { opacity: 0.9; font-size: 0.95rem; }
-    .header .date { opacity: 0.8; font-size: 0.85rem; margin-top: 0.5rem; }
+    .header h1 { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.2rem; }
+    .header .subtitle { opacity: 0.9; font-size: 0.85rem; }
+    .header .date { opacity: 0.8; font-size: 0.75rem; margin-top: 0.4rem; }
 
     .metrics-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin: 1.5rem 0;
+        gap: 0.8rem;
+        margin: 1rem 0;
     }
     .metric-card {
         background: #f8fafc;
         border-radius: 12px;
-        padding: 1.2rem;
+        padding: 1rem;
         text-align: center;
-        border-left: 4px solid #4f46e5;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #4f46e5;
     }
-    .metric-card.positive { border-left-color: #10b981; }
-    .metric-card.negative { border-left-color: #ef4444; }
-    .metric-card.warning { border-left-color: #f59e0b; }
+    .metric-card.positive { border-top-color: #10b981; }
+    .metric-card.negative { border-top-color: #ef4444; }
+    .metric-card.warning { border-top-color: #f59e0b; }
     .metric-label {
-        font-size: 0.75rem;
+        font-size: 0.65rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: #6b7280;
-        margin-bottom: 0.3rem;
-        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+        font-weight: 700;
     }
     .metric-value {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
         font-weight: 800;
-        color: #1f2937;
+        color: #0f172a;
     }
-    .metric-value.positive { color: #10b981; }
-    .metric-value.negative { color: #ef4444; }
-    .metric-value.warning { color: #f59e0b; }
     .metric-comparison {
-        font-size: 0.75rem;
-        margin-top: 0.3rem;
+        font-size: 0.7rem;
+        margin-top: 0.2rem;
+        font-weight: 600;
     }
-    .metric-comparison.better { color: #10b981; }
-    .metric-comparison.worse { color: #ef4444; }
+    .metric-comparison.better { color: #059669; }
+    .metric-comparison.worse { color: #dc2626; }
 
-    .section { margin: 1.5rem 0; }
+    .section { margin: 1.5rem 0; page-break-inside: avoid; }
     .section-title {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: #1f2937;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #1e293b;
         margin-bottom: 0.8rem;
-        padding-bottom: 0.4rem;
-        border-bottom: 2px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: #e2e8f0;
     }
 
     .chart-container {
-        background: #f8fafc;
+        background: #fff;
+        border: 1px solid #e2e8f0;
         border-radius: 12px;
         padding: 1rem;
-        margin: 1rem 0;
+        margin: 0.5rem 0;
         text-align: center;
     }
     .chart-container img {
         max-width: 100%;
         height: auto;
-        border-radius: 8px;
     }
 
     table {
         width: 100%;
         border-collapse: collapse;
-        margin: 1rem 0;
-        font-size: 0.9rem;
+        margin: 0.5rem 0;
     }
     th {
-        background: #f1f5f9;
-        font-weight: 600;
+        background: #f8fafc;
+        font-weight: 700;
         text-align: left;
-        padding: 0.7rem;
+        padding: 0.6rem;
         color: #475569;
-        font-size: 0.8rem;
+        font-size: 0.7rem;
         text-transform: uppercase;
-        letter-spacing: 0.03em;
+        border-bottom: 2px solid #e2e8f0;
     }
     td {
-        padding: 0.7rem;
-        border-bottom: 1px solid #e2e8f0;
+        padding: 0.6rem;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.85rem;
     }
-    tr:hover { background: #f8fafc; }
-    .text-right { text-align: right; }
-    .text-center { text-align: center; }
-
-    .expense { color: #ef4444; }
-    .income { color: #10b981; }
-
-    .summary-box {
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 1rem 0;
-    }
-    .summary-box.warning {
-        background: #fffbeb;
-        border-color: #fcd34d;
-    }
-    .summary-box.info {
-        background: #eff6ff;
-        border-color: #bfdbfe;
-    }
-
-    .two-columns {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-        margin: 1rem 0;
-    }
-
-    .highlight-text {
-        font-size: 1.1rem;
-        font-weight: 600;
-    }
+    .comparison-table th { background: #f1f5f9; color: #1e293b; }
+    .comparison-table td { font-weight: 500; font-size: 0.9rem; }
+    
+    .row-highlight { background: #fffbeb; font-weight: 700; }
 
     .footer {
         margin-top: 2rem;
         padding-top: 1rem;
         border-top: 1px solid #e2e8f0;
-        font-size: 0.8rem;
-        color: #9ca3af;
+        font-size: 0.7rem;
+        color: #94a3b8;
         text-align: center;
     }
-
+    
     .badge {
-        display: inline-block;
-        padding: 0.2rem 0.5rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 600;
+        padding: 0.15rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        font-weight: 700;
     }
-    .badge-blue { background: #dbeafe; color: #1e40af; }
-    .badge-green { background: #d1fae5; color: #065f46; }
-    .badge-red { background: #fee2e2; color: #991b1b; }
     .badge-amber { background: #fef3c7; color: #92400e; }
-
-    @media print {
-        .no-break { page-break-inside: avoid; }
-        .page-break { page-break-before: always; }
-    }
 </style>
 `;
+
+// Generar una imagen de gráfico comparativo simple (Canvas)
+const generateComparisonChart = (label, periodVal, historicalVal, color = '#f59e0b') => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+    
+    const max = Math.max(periodVal, historicalVal) * 1.2;
+    const wP = (periodVal / max) * 300;
+    const wH = (historicalVal / max) * 300;
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, 400, 100);
+
+    // Periodo
+    ctx.fillStyle = color;
+    ctx.fillRect(80, 20, wP, 25);
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 12px Inter';
+    ctx.fillText('Periodo', 10, 38);
+    ctx.fillText(periodVal.toFixed(2), 85 + wP, 38);
+
+    // Histórico
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(80, 55, wH, 25);
+    ctx.fillStyle = '#64748b';
+    ctx.fillText('Histórico', 10, 73);
+    ctx.fillText(historicalVal.toFixed(2), 85 + wH, 73);
+
+    return canvas.toDataURL();
+};
 
 // ============================================================================
 // GENERADOR DE REPORTE DE 30 DÍAS
@@ -343,58 +343,51 @@ export const generateAiReport = async (transactions) => {
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         const last30Txs = transactions.filter(t => t.date.toDate() >= thirtyDaysAgo);
 
-        // Calcular métricas
         const income = last30Txs.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
         const expenses = last30Txs.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0);
         const balance = income - expenses;
 
-        // Agrupar por categoría
         const byCategory = {};
         last30Txs.filter(t => t.amount < 0).forEach(t => {
             const cat = t.category || 'Sin categoría';
             byCategory[cat] = (byCategory[cat] || 0) + Math.abs(t.amount);
         });
 
-        const sortedCategories = Object.entries(byCategory)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5);
-
-        // Capturar gráficos
+        const sortedCategories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
         const incomeExpenseChart = captureChart('incomeExpenseChart');
         const categoryChart = captureChart('categoryAnalysisChart');
 
-        // Generar HTML
         const htmlContent = `
 ${getPDFStyles()}
 <div class="header">
     <h1>Resumen Financiero</h1>
-    <div class="subtitle">Últimos 30 días</div>
+    <div class="subtitle">Análisis de rendimiento de los últimos 30 días</div>
     <div class="date">${formatDate(thirtyDaysAgo)} - ${formatDate(now)}</div>
 </div>
 
 <div class="metrics-grid">
     <div class="metric-card">
         <div class="metric-label">Ingresos</div>
-        <div class="metric-value income">${formatCurrency(income)}</div>
+        <div class="metric-value" style="color:#10b981">${formatCurrency(income)}</div>
     </div>
     <div class="metric-card">
         <div class="metric-label">Gastos</div>
-        <div class="metric-value expense">${formatCurrency(expenses)}</div>
+        <div class="metric-value" style="color:#ef4444">${formatCurrency(expenses)}</div>
     </div>
     <div class="metric-card ${balance >= 0 ? 'positive' : 'negative'}">
         <div class="metric-label">Balance</div>
-        <div class="metric-value ${balance >= 0 ? 'positive' : 'negative'}">${formatCurrency(balance)}</div>
+        <div class="metric-value">${formatCurrency(balance)}</div>
     </div>
 </div>
 
-<div class="two-columns">
-    <div class="section no-break">
-        <div class="section-title">Distribución Ingresos/Gastos</div>
-        ${incomeExpenseChart ? `<div class="chart-container"><img src="${incomeExpenseChart}" alt="Gráfico de ingresos y gastos"></div>` : '<p class="text-center">Gráfico no disponible</p>'}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0;">
+    <div class="chart-container">
+        <p style="font-size: 8px; font-weight: bold; margin-bottom: 5px; color:#64748b; text-align: left;">FLUJO DE CAJA</p>
+        ${incomeExpenseChart ? `<img src="${incomeExpenseChart}">` : 'N/A'}
     </div>
-    <div class="section no-break">
-        <div class="section-title">Gastos por Categoría</div>
-        ${categoryChart ? `<div class="chart-container"><img src="${categoryChart}" alt="Gráfico por categoría"></div>` : '<p class="text-center">Gráfico no disponible</p>'}
+    <div class="chart-container">
+        <p style="font-size: 8px; font-weight: bold; margin-bottom: 5px; color:#64748b; text-align: left;">GASTOS POR CATEGORÍA</p>
+        ${categoryChart ? `<img src="${categoryChart}">` : 'N/A'}
     </div>
 </div>
 
@@ -405,14 +398,14 @@ ${getPDFStyles()}
             <tr>
                 <th>Categoría</th>
                 <th class="text-right">Importe</th>
-                <th class="text-right">% del Total</th>
+                <th class="text-right">%</th>
             </tr>
         </thead>
         <tbody>
             ${sortedCategories.map(([cat, amount]) => `
                 <tr>
                     <td>${cat}</td>
-                    <td class="text-right expense">${formatCurrency(amount)}</td>
+                    <td class="text-right" style="color:#ef4444; font-weight:bold">${formatCurrency(amount)}</td>
                     <td class="text-right">${((amount / expenses) * 100).toFixed(1)}%</td>
                 </tr>
             `).join('')}
@@ -421,23 +414,21 @@ ${getPDFStyles()}
 </div>
 
 <div class="section">
-    <div class="section-title">Últimas Transacciones</div>
+    <div class="section-title">Últimos Movimientos</div>
     <table>
         <thead>
             <tr>
                 <th>Fecha</th>
                 <th>Concepto</th>
-                <th>Categoría</th>
                 <th class="text-right">Importe</th>
             </tr>
         </thead>
         <tbody>
-            ${last30Txs.slice(-10).reverse().map(t => `
+            ${last30Txs.slice(-8).reverse().map(t => `
                 <tr>
                     <td>${formatDate(t.date.toDate())}</td>
-                    <td>${t.description}</td>
-                    <td><span class="badge badge-blue">${t.category}</span></td>
-                    <td class="text-right ${t.amount >= 0 ? 'income' : 'expense'}">${formatCurrency(t.amount)}</td>
+                    <td>${t.description} <small style="display:block; color:#94a3b8; font-size:0.75em">${t.category}</small></td>
+                    <td class="text-right" style="font-weight:700; color:${t.amount >= 0 ? '#10b981' : '#ef4444'}">${formatCurrency(t.amount)}</td>
                 </tr>
             `).join('')}
         </tbody>
@@ -445,7 +436,7 @@ ${getPDFStyles()}
 </div>
 
 <div class="footer">
-    Generado el ${formatDate(new Date())} por Finanzas IA
+    Informe generado por Finanzas IA el ${formatDate(new Date())}
 </div>
 `;
 
@@ -460,7 +451,6 @@ ${getPDFStyles()}
 
     } catch (err) {
         alert("Error al generar reporte: " + err.message);
-        console.error(err);
     } finally {
         hideLoadingOverlay();
     }
@@ -474,10 +464,8 @@ export const generateExlabesaReport = async (transactions, startDate, endDate) =
     showLoadingOverlay();
 
     try {
-        const s = new Date(startDate);
-        s.setHours(0, 0, 0, 0);
-        const e = new Date(endDate);
-        e.setHours(23, 59, 59, 999);
+        const s = new Date(startDate); s.setHours(0, 0, 0, 0);
+        const e = new Date(endDate); e.setHours(23, 59, 59, 999);
 
         const txs = transactions.filter(t => {
             const d = t.date?.toDate?.();
@@ -486,56 +474,36 @@ export const generateExlabesaReport = async (transactions, startDate, endDate) =
 
         const total = txs.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-        // Generar HTML
         const htmlContent = `
 ${getPDFStyles()}
 <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
-    <h1>Informe de Dietas EXLABESA</h1>
-    <div class="subtitle">Gastos de empresa</div>
+    <h1>Informe Dietas EXLABESA</h1>
+    <div class="subtitle">Liquidación de gastos profesionales</div>
     <div class="date">${formatDate(s)} - ${formatDate(e)}</div>
 </div>
 
 <div class="metrics-grid">
-    <div class="metric-card">
-        <div class="metric-label">Total Transacciones</div>
+    <div class="metric-card positive">
+        <div class="metric-label">Total Registros</div>
         <div class="metric-value">${txs.length}</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Importe Total</div>
-        <div class="metric-value expense">${formatCurrency(total)}</div>
+        <div class="metric-label">Importe a Liquidar</div>
+        <div class="metric-value" style="color:#ef4444">${formatCurrency(total)}</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Media por Transacción</div>
-        <div class="metric-value">${txs.length > 0 ? formatCurrency(total / txs.length) : formatCurrency(0)}</div>
+        <div class="metric-label">Gasto Medio</div>
+        <div class="metric-value">${txs.length > 0 ? formatCurrency(total / txs.length) : '0,00€'}</div>
     </div>
-</div>
-
-${txs.some(t => t.receiptImage) ? `
-<div class="section no-break page-break">
-    <div class="section-title">Anexo: Justificantes de tickets</div>
-    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1cm;">
-        ${txs.filter(t => t.receiptImage).map(t => `
-            <div style="border: 1px solid #eee; padding: 10px; border-radius: 10px;">
-                <p style="font-size: 8pt; margin-bottom: 5px; font-weight: bold;">${formatDate(t.date.toDate())} - ${t.description}</p>
-                <img src="${t.receiptImage}" style="width: 100%; height: auto; max-height: 10cm; object-fit: contain; border-radius: 5px;">
-            </div>
-        `).join('')}
-    </div>
-</div>
-` : ''}
-
-<div class="summary-box info">
-    <div class="highlight-text">Resumen del período</div>
-    <p>Este informe detalla todos los gastos de empresa (categoría EXLABESA) registrados entre el ${formatDate(s)} y el ${formatDate(e)}.</p>
 </div>
 
 <div class="section">
-    <div class="section-title">Detalle de Gastos</div>
+    <div class="section-title">Detalle de Justificantes</div>
     <table>
         <thead>
             <tr>
                 <th>Fecha</th>
-                <th>Concepto</th>
+                <th>Concepto / Proveedor</th>
                 <th class="text-right">Importe</th>
             </tr>
         </thead>
@@ -544,19 +512,33 @@ ${txs.some(t => t.receiptImage) ? `
                 <tr>
                     <td>${formatDate(t.date.toDate())}</td>
                     <td>${t.description}</td>
-                    <td class="text-right expense">${formatCurrency(Math.abs(t.amount))}</td>
+                    <td class="text-right" style="font-weight:700">${formatCurrency(Math.abs(t.amount))}</td>
                 </tr>
             `).join('')}
-            <tr style="background: #f1f5f9; font-weight: 700;">
-                <td colspan="2" class="text-right">TOTAL</td>
-                <td class="text-right expense">${formatCurrency(total)}</td>
+            <tr style="background: #f8fafc; font-weight: 800; font-size:1.1em">
+                <td colspan="2" class="text-right">TOTAL LIQUIDACIÓN</td>
+                <td class="text-right" style="color:#ef4444">${formatCurrency(total)}</td>
             </tr>
         </tbody>
     </table>
 </div>
 
+${txs.some(t => t.receiptImage) ? `
+<div class="section" style="page-break-before: always;">
+    <div class="section-title">Anexo: Fotos de Tickets</div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5cm; margin-top: 1rem;">
+        ${txs.filter(t => t.receiptImage).map(t => `
+            <div style="border: 1px solid #e2e8f0; padding: 10px; border-radius: 12px; text-align: center;">
+                <p style="font-size: 7pt; margin-bottom: 5px; font-weight: 700; color:#64748b;">${formatDate(t.date.toDate())} - ${t.description.substring(0,25)}</p>
+                <img src="${t.receiptImage}" style="max-width: 100%; max-height: 8cm; object-fit: contain; border-radius: 8px;">
+            </div>
+        `).join('')}
+    </div>
+</div>
+` : ''}
+
 <div class="footer">
-    Documento generado el ${formatDate(new Date())} - EXLABESA
+    Documento oficial generado el ${formatDate(new Date())} por Finanzas IA
 </div>
 `;
 
@@ -564,18 +546,15 @@ ${txs.some(t => t.receiptImage) ? `
         container.innerHTML = htmlContent;
         preparePrintView('exlabesaPdfContainer');
 
-        const txsWithImages = txs.filter(t => t.receiptImage).map(t => t.id);
-
         waitForRender(() => {
             window.print();
             setTimeout(cleanupPrintView, 800);
         }, 1200);
 
-        return txsWithImages;
+        return txs.filter(t => t.receiptImage).map(t => t.id);
 
     } catch (err) {
-        alert("Error al generar reporte: " + err.message);
-        console.error(err);
+        alert("Error: " + err.message);
         return [];
     } finally {
         hideLoadingOverlay();
@@ -590,92 +569,112 @@ export const generateFuelReport = async (transactions, startDate, endDate) => {
     showLoadingOverlay();
 
     try {
-        // Calcular métricas DE TODO EL HISTORIAL pasando fechas del periodo
         const result = calculateFuelMetrics(transactions, startDate, endDate);
-
-        if (result.error) {
-            alert(result.error);
-            hideLoadingOverlay();
-            return;
-        }
+        if (result.error) { alert(result.error); hideLoadingOverlay(); return; }
 
         const { metrics, historical, records } = result;
 
-        // Comparaciones con histórico
-        const litersComparison = historical.litersPer100km && metrics.litersPer100km
-            ? ((metrics.litersPer100km - historical.litersPer100km) / historical.litersPer100km * 100).toFixed(1)
-            : null;
-        const eurosComparison = historical.eurosPer100km && metrics.eurosPer100km
-            ? ((metrics.eurosPer100km - historical.eurosPer100km) / historical.eurosPer100km * 100).toFixed(1)
-            : null;
-        const priceComparison = historical.avgPricePerLiter && metrics.avgPricePerLiter
-            ? ((metrics.avgPricePerLiter - historical.avgPricePerLiter) / historical.avgPricePerLiter * 100).toFixed(1)
-            : null;
+        const lDiff = historical.litersPer100km ? ((metrics.litersPer100km - historical.litersPer100km) / historical.litersPer100km * 100).toFixed(1) : 0;
+        const eDiff = historical.eurosPer100km ? ((metrics.eurosPer100km - historical.eurosPer100km) / historical.eurosPer100km * 100).toFixed(1) : 0;
 
-        // Generar HTML
+        const chartL = generateComparisonChart('L/100km', metrics.litersPer100km, historical.litersPer100km, '#d97706');
+        const chartE = generateComparisonChart('€/100km', metrics.eurosPer100km, historical.eurosPer100km, '#b45309');
+
         const htmlContent = `
 ${getPDFStyles()}
 <div class="header" style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);">
     <h1>Informe de Combustible</h1>
-    <div class="subtitle">Análisis de consumo y gastos</div>
+    <div class="subtitle">Análisis avanzado de eficiencia y gastos</div>
     <div class="date">${formatDate(metrics.period.start)} - ${formatDate(metrics.period.end)}</div>
 </div>
 
 <div class="metrics-grid">
     <div class="metric-card">
-        <div class="metric-label">Km Recorridos (en periodo)</div>
+        <div class="metric-label">Recorrido</div>
         <div class="metric-value">${metrics.kmTraveled.toLocaleString('es-ES')} km</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Consumido (en periodo)</div>
-        <div class="metric-value">${metrics.lSum.toFixed(2)} L</div>
+        <div class="metric-label">Litros totales</div>
+        <div class="metric-value">${metrics.lSum.toFixed(1)} L</div>
     </div>
     <div class="metric-card">
-        <div class="metric-label">Importe Total (en periodo)</div>
+        <div class="metric-label">Gasto total</div>
         <div class="metric-value">${formatCurrency(metrics.eSum)}</div>
     </div>
 </div>
 
 <div class="section">
-    <div class="section-title">Métricas de Consumo</div>
+    <div class="section-title">Comparativa de Eficiencia</div>
     <div class="metrics-grid">
-        <div class="metric-card ${litersComparison && parseFloat(litersComparison) > 0 ? 'negative' : 'positive'}">
-            <div class="metric-label">Consumo (L/100km)</div>
-            <div class="metric-value">${metrics.litersPer100km ? metrics.litersPer100km.toFixed(2) : 'N/A'}</div>
-            ${litersComparison ? `<div class="metric-comparison ${parseFloat(litersComparison) > 0 ? 'worse' : 'better'}">${parseFloat(litersComparison) > 0 ? '↑' : '↓'} ${Math.abs(litersComparison)}% vs histórico</div>` : ''}
+        <div class="metric-card ${parseFloat(lDiff) > 0 ? 'negative' : 'positive'}">
+            <div class="metric-label">Consumo Medio</div>
+            <div class="metric-value">${metrics.litersPer100km?.toFixed(2)} <small style="font-size:0.6em">L/100</small></div>
+            <div class="metric-comparison ${parseFloat(lDiff) > 0 ? 'worse' : 'better'}">${lDiff > 0 ? '↑' : '↓'} ${Math.abs(lDiff)}% vs histórico</div>
         </div>
-        <div class="metric-card ${eurosComparison && parseFloat(eurosComparison) > 0 ? 'negative' : 'positive'}">
-            <div class="metric-label">Coste (€/100km)</div>
-            <div class="metric-value">${metrics.eurosPer100km ? formatCurrency(metrics.eurosPer100km) : 'N/A'}</div>
-            ${eurosComparison ? `<div class="metric-comparison ${parseFloat(eurosComparison) > 0 ? 'worse' : 'better'}">${parseFloat(eurosComparison) > 0 ? '↑' : '↓'} ${Math.abs(eurosComparison)}% vs histórico</div>` : ''}
-        </div>
-        <div class="metric-card ${priceComparison && parseFloat(priceComparison) > 0 ? 'negative' : 'positive'}">
-            <div class="metric-label">Precio Medio/L</div>
-            <div class="metric-value">${metrics.avgPricePerLiter ? formatCurrency(metrics.avgPricePerLiter) : 'N/A'}</div>
-            ${priceComparison ? `<div class="metric-comparison ${parseFloat(priceComparison) > 0 ? 'worse' : 'better'}">${parseFloat(priceComparison) > 0 ? '↑' : '↓'} ${Math.abs(priceComparison)}% vs histórico</div>` : ''}
+        <div class="metric-card ${parseFloat(eDiff) > 0 ? 'negative' : 'positive'}">
+            <div class="metric-label">Coste Medio</div>
+            <div class="metric-value">${metrics.eurosPer100km?.toFixed(2)} <small style="font-size:0.6em">€/100</small></div>
+            <div class="metric-comparison ${parseFloat(eDiff) > 0 ? 'worse' : 'better'}">${eDiff > 0 ? '↑' : '↓'} ${Math.abs(eDiff)}% vs histórico</div>
         </div>
         <div class="metric-card">
-            <div class="metric-label">Coste por Km</div>
-            <div class="metric-value">${metrics.costPerKm ? formatCurrency(metrics.costPerKm) : 'N/A'}</div>
+            <div class="metric-label">Precio Medio/L</div>
+            <div class="metric-value">${metrics.avgPricePerLiter?.toFixed(3)} <small style="font-size:0.6em">€/L</small></div>
         </div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+        <div class="chart-container"><p style="font-size: 8px; font-weight: bold; margin-bottom: 5px; color:#64748b; text-align: left;">VISUAL: CONSUMO L/100KM</p><img src="${chartL}"></div>
+        <div class="chart-container"><p style="font-size: 8px; font-weight: bold; margin-bottom: 5px; color:#64748b; text-align: left;">VISUAL: COSTE €/100KM</p><img src="${chartE}"></div>
     </div>
 </div>
 
-<div class="summary-box ${litersComparison && parseFloat(litersComparison) > 10 ? 'warning' : 'info'}">
-    <div class="highlight-text">Comparación con Histórico</div>
-    <p>Consumo histórico medio: <strong>${historical.litersPer100km ? historical.litersPer100km.toFixed(2) : 'N/A'} L/100km</strong></p>
-    <p>Coste histórico medio: <strong>${historical.eurosPer100km ? formatCurrency(historical.eurosPer100km) : 'N/A'}/100km</strong></p>
-    ${litersComparison && parseFloat(litersComparison) > 10 ? '<p style="color: #92400e; margin-top: 0.5rem;">⚠️ El consumo de este período es significativamente mayor que la media histórica.</p>' : ''}
+<div class="section">
+    <div class="section-title">Tabla Comparativa Detallada</div>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>Métrica</th>
+                <th class="text-right">Este Periodo</th>
+                <th class="text-right">Histórico Total</th>
+                <th class="text-right">Diferencia</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Consumo (L/100km)</td>
+                <td class="text-right">${metrics.litersPer100km?.toFixed(2)} L</td>
+                <td class="text-right">${historical.litersPer100km?.toFixed(2)} L</td>
+                <td class="text-right ${parseFloat(lDiff) > 0 ? 'expense' : 'income'}">${lDiff > 0 ? '+' : ''}${lDiff}%</td>
+            </tr>
+            <tr>
+                <td>Coste (€/100km)</td>
+                <td class="text-right">${metrics.eurosPer100km?.toFixed(2)} €</td>
+                <td class="text-right">${historical.eurosPer100km?.toFixed(2)} €</td>
+                <td class="text-right ${parseFloat(eDiff) > 0 ? 'expense' : 'income'}">${eDiff > 0 ? '+' : ''}${eDiff}%</td>
+            </tr>
+            <tr>
+                <td>Precio Combustible (€/L)</td>
+                <td class="text-right">${metrics.avgPricePerLiter?.toFixed(3)} €</td>
+                <td class="text-right">${historical.avgPricePerLiter?.toFixed(3)} €</td>
+                <td class="text-right">${metrics.avgPricePerLiter && historical.avgPricePerLiter ? ((metrics.avgPricePerLiter - historical.avgPricePerLiter)/historical.avgPricePerLiter*100).toFixed(1) : 0}%</td>
+            </tr>
+            <tr class="row-highlight">
+                <td>Coste Real por KM</td>
+                <td class="text-right">${metrics.costPerKm?.toFixed(3)} €</td>
+                <td class="text-right">${historical.costPerKm?.toFixed(3)} €</td>
+                <td class="text-right">-</td>
+            </tr>
+        </tbody>
+    </table>
 </div>
 
 <div class="section">
-    <div class="section-title">Registro de Repostajes</div>
+    <div class="section-title">Listado de Repostajes</div>
     <table>
         <thead>
             <tr>
                 <th>Fecha</th>
                 <th>Concepto</th>
-                <th class="text-right">Km</th>
+                <th class="text-right">Cuentakm</th>
                 <th class="text-right">Litros</th>
                 <th class="text-right">Importe</th>
             </tr>
@@ -684,10 +683,10 @@ ${getPDFStyles()}
             ${records.map(r => `
                 <tr>
                     <td>${formatDate(r.date)}</td>
-                    <td>${r.description}</td>
+                    <td><span class="badge badge-amber">⛽</span> ${r.description}</td>
                     <td class="text-right">${r.km ? r.km.toLocaleString('es-ES') : '-'}</td>
                     <td class="text-right">${r.liters ? r.liters.toFixed(2) : '-'}</td>
-                    <td class="text-right expense">${formatCurrency(r.amount)}</td>
+                    <td class="text-right" style="font-weight:700">${formatCurrency(r.amount)}</td>
                 </tr>
             `).join('')}
         </tbody>
@@ -695,9 +694,26 @@ ${getPDFStyles()}
 </div>
 
 <div class="footer">
-    Informe generado el ${formatDate(new Date())} - Finanzas IA
+    Reporte de Inteligencia Financiera generado el ${formatDate(new Date())}
 </div>
 `;
+
+        const container = document.getElementById('fuelPdfContainer');
+        container.innerHTML = htmlContent;
+        preparePrintView('fuelPdfContainer');
+
+        waitForRender(() => {
+            window.print();
+            setTimeout(cleanupPrintView, 800);
+        }, 1200);
+
+    } catch (err) {
+        alert("Error al generar reporte: " + err.message);
+        console.error(err);
+    } finally {
+        hideLoadingOverlay();
+    }
+};
 
         const container = document.getElementById('fuelPdfContainer');
         container.innerHTML = htmlContent;
