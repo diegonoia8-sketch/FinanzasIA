@@ -436,7 +436,7 @@ ${getPDFStyles()}
 </div>
 
 <div class="footer">
-    Informe generado por Finanzas IA el ${formatDate(new Date())}
+    Informe generado por Oink el ${formatDate(new Date())}
 </div>
 `;
 
@@ -538,7 +538,7 @@ ${txs.some(t => t.receiptImage) ? `
 ` : ''}
 
 <div class="footer">
-    Documento oficial generado el ${formatDate(new Date())} por Finanzas IA
+    Documento oficial generado el ${formatDate(new Date())} por Oink
 </div>
 `;
 
@@ -694,7 +694,7 @@ ${getPDFStyles()}
 </div>
 
 <div class="footer">
-    Reporte de Inteligencia Financiera generado el ${formatDate(new Date())}
+    Reporte de Oink generado el ${formatDate(new Date())}
 </div>
 `;
 

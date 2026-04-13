@@ -1,6 +1,6 @@
 {
-  "name": "Financial AI v2",
-  "short_name": "FinanzasIA",
+  "name": "Oink - Tu Gestor Financiero",
+  "short_name": "Oink",
   "description": "Tu gestor financiero inteligente",
   "start_url": "index.html",
   "display": "standalone",

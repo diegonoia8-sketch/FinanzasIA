@@ -38,7 +38,11 @@ export async function callGeminiChat(userMessage, financialContext = '', allTran
     // Add user message to history
     chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
 
-    const systemInstruction = `Eres un asesor financiero personal experto. Tienes acceso a un resumen financiero actual:
+    const systemInstruction = `Eres Oink, un asistente financiero experto y cercano. Tu tono es profesional pero amigable. 
+        Analiza los datos proporcionados y da consejos accionables. No saludes siempre, ve al grano si la pregunta es técnica.
+        Hoy es ${new Date().toLocaleDateString('es-ES')}.
+        
+        Tienes acceso a un resumen financiero actual:
 ${financialContext}
 Si te preguntan por transacciones específicas (ej: "cuánto gasté en X", "en qué gasté en mayo"), TIENES QUE UTILIZAR la herramienta de filtro 'filter_transactions' para buscar datos en el historial. No asumas nada. Responde en español, de forma concisa e interactiva.`;
 

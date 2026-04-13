@@ -132,7 +132,9 @@ export const checkAndRegisterRecurring = async (userId, recurringItems, transact
 
         // Comprobar si ya se registró este mes
         const alreadyDone = transactions.some(t => {
-            const d = t.date?.toDate?.();
+            if (!t.date) return false;
+            // Manejar tanto Timestamp de Firebase como Date de JS
+            const d = t.date.toDate ? t.date.toDate() : new Date(t.date);
             return d && d.getMonth() === currentMonth && d.getFullYear() === currentYear &&
                 t.description?.includes(item.name) && t.category === (item.category || 'Facturas');
         });
@@ -140,7 +142,7 @@ export const checkAndRegisterRecurring = async (userId, recurringItems, transact
         if (!alreadyDone) {
             // Lógica de "No registrar si se activó después del día de vencimiento este mes"
             if (item.lastActivatedAt) {
-                const activationDate = item.lastActivatedAt.toDate();
+                const activationDate = item.lastActivatedAt.toDate ? item.lastActivatedAt.toDate() : new Date(item.lastActivatedAt);
                 const theoreticalDateThisMonth = new Date(currentYear, currentMonth, item.day);
                 // Si la activación fue después del día en que debía cobrarse este mes, ignoramos hasta el mes que viene
                 if (activationDate > theoreticalDateThisMonth) {

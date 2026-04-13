@@ -723,7 +723,7 @@ if (SpeechRecognition) {
 
 // CHAT
 const chatWidget = document.getElementById('chatWidget');
-document.getElementById('openChatBtn').addEventListener('click', () => { chatWidget.classList.toggle('hidden-chat'); if (!chatWidget.classList.contains('hidden-chat') && !document.getElementById('chatMessages').childElementCount) { addBotMsg('¡Hola! Soy tu asesor financiero personal. Puedo analizar tus gastos, ingresos, presupuestos y ayudarte con cualquier pregunta sobre tus finanzas. ¿En qué te puedo ayudar?'); } });
+document.getElementById('openChatBtn').addEventListener('click', () => { chatWidget.classList.toggle('hidden-chat'); if (!chatWidget.classList.contains('hidden-chat') && !document.getElementById('chatMessages').childElementCount) { addBotMsg('¡Hola! Soy Oink, tu asesor financiero personal. Puedo analizar tus gastos, ingresos, presupuestos y ayudarte con cualquier pregunta sobre tus finanzas. ¿En qué te puedo ayudar?'); } });
 document.getElementById('closeChatBtn').addEventListener('click', () => chatWidget.classList.add('hidden-chat'));
 document.getElementById('clearChatBtn').addEventListener('click', () => { document.getElementById('chatMessages').innerHTML = ''; resetChatHistory(); addBotMsg('Conversación reiniciada. ¿En qué te ayudo?'); });
 

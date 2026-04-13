@@ -66,5 +66,11 @@ export const saveBudget = async (userId, data) => {
 };
 
 export const saveRecurring = async (userId, data) => {
-    await addDoc(collection(db, dbCollections.recurring), { ...data, userId, active: true, createdAt: serverTimestamp() });
+    await addDoc(collection(db, dbCollections.recurring), { 
+        ...data, 
+        userId, 
+        active: true, 
+        createdAt: serverTimestamp(),
+        lastActivatedAt: serverTimestamp() 
+    });
 };
