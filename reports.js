@@ -714,20 +714,3 @@ ${getPDFStyles()}
         hideLoadingOverlay();
     }
 };
-
-        const container = document.getElementById('fuelPdfContainer');
-        container.innerHTML = htmlContent;
-        preparePrintView('fuelPdfContainer');
-
-        waitForRender(() => {
-            window.print();
-            setTimeout(cleanupPrintView, 800);
-        }, 1200);
-
-    } catch (err) {
-        alert("Error al generar reporte: " + err.message);
-        console.error(err);
-    } finally {
-        hideLoadingOverlay();
-    }
-};
