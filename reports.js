@@ -138,9 +138,9 @@ export const calculateFuelMetrics = (transactions, startDate, endDate, category 
         let kmTraveled = 0;
         if (last.km && first.km) kmTraveled = last.km - first.km;
 
-        // Sumar litros/euros de todos menos el último (el que marca el fin de los km del periodo)
-        const lSum = records.slice(0, -1).reduce((s, r) => s + (r.liters || 0), 0);
-        const eSum = records.slice(0, -1).reduce((s, r) => s + r.amount, 0);
+        // Sumar litros/euros de todos excepto el más antiguo (ya que su repostaje pertenece al consumo de kilómetros previos)
+        const lSum = records.slice(1).reduce((s, r) => s + (r.liters || 0), 0);
+        const eSum = records.slice(1).reduce((s, r) => s + r.amount, 0);
 
         return {
             kmTraveled,

@@ -197,8 +197,8 @@ const updateDashboardFuelMetrics = (txs) => {
     const lastWithKm = withKm[withKm.length - 1];
     totalKm = lastWithKm.km - firstWithKm.km;
     
-    // Sumar litros de todos menos el último (el último marca el fin del trayecto anterior)
-    const recordsForSum = processed.filter(p => p.date?.seconds >= firstWithKm.date?.seconds && p.date?.seconds < lastWithKm.date?.seconds);
+    // Sumar litros de todos excepto el más antiguo (ya que pertenece al consumo previo)
+    const recordsForSum = processed.filter(p => p.date?.seconds > firstWithKm.date?.seconds && p.date?.seconds <= lastWithKm.date?.seconds);
     totalLiters = recordsForSum.reduce((s, r) => s + (r.liters || 0), 0);
     totalCost = recordsForSum.reduce((s, r) => s + r.amount, 0);
 
@@ -740,7 +740,7 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
     document.getElementById('chatLoadingIcon').classList.remove('hidden');
     try {
         const context = buildFinancialContext(allUserTransactions, allBudgets);
-        const reply = await callGeminiChat(msg, context);
+        const reply = await callGeminiChat(msg, context, allUserTransactions);
         addBotMsg(reply);
     } catch (err) { addBotMsg(`Error: ${err.message}`); }
     finally { document.getElementById('chatSendIcon').classList.remove('hidden'); document.getElementById('chatLoadingIcon').classList.add('hidden'); }

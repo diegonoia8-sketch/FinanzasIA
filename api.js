@@ -30,44 +30,113 @@ export async function callGemini(systemPrompt, userPrompt, base64Image = null) {
     return data.candidates[0].content.parts[0].text;
 }
 
-// Chat with session memory
-export async function callGeminiChat(userMessage, financialContext = '') {
+// Chat with session memory and Function Calling
+export async function callGeminiChat(userMessage, financialContext = '', allTransactions = []) {
     const apiKey = localStorage.getItem('geminiApiKey');
     if (!apiKey) throw new Error("Falta la API Key de Gemini.");
 
     // Add user message to history
     chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
 
-    // Keep last 10 exchanges for context
-    const trimmedHistory = chatHistory.slice(-20);
-
-    const systemInstruction = `Eres un asesor financiero personal experto y cercano. Tienes acceso a los datos financieros del usuario:
+    const systemInstruction = `Eres un asesor financiero personal experto. Tienes acceso a un resumen financiero actual:
 ${financialContext}
-Responde en español, de forma concisa y útil. Si el usuario pregunta por datos específicos, extrae la información del contexto proporcionado. 
-Si no tienes la información necesaria, dilo claramente.`;
+Si te preguntan por transacciones específicas (ej: "cuánto gasté en X", "en qué gasté en mayo"), TIENES QUE UTILIZAR la herramienta de filtro 'filter_transactions' para buscar datos en el historial. No asumas nada. Responde en español, de forma concisa e interactiva.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemInstruction }] },
-            contents: trimmedHistory
-        })
-    });
+    const tools = [{
+        functionDeclarations: [{
+            name: "filter_transactions",
+            description: "Busca y filtra transacciones del usuario.",
+            parameters: {
+                type: "OBJECT",
+                properties: {
+                    searchTerm: { type: "STRING", description: "Término a buscar en concepto (ej: 'Telepizza', 'Mercadona', 'Gasolina')" },
+                    category: { type: "STRING", description: "Categoría del gasto o ingreso" },
+                    month: { type: "INTEGER", description: "Mes numérico (1-12)" },
+                    year: { type: "INTEGER", description: "Año (ej: 2025)" },
+                    type: { type: "STRING", description: "'expense' para gastos, 'income' para ingresos" }
+                }
+            }
+        }]
+    }];
 
-    if (!response.ok) {
-        const err = await response.json();
-        const errMsg = err.error?.message || "Error de IA";
-        chatHistory.pop(); // Remove failed message
-        throw new Error(errMsg);
+    let maxCalls = 3;
+    while (maxCalls > 0) {
+        maxCalls--;
+        const trimmedHistory = chatHistory.slice(-20);
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                system_instruction: { parts: [{ text: systemInstruction }] },
+                tools: tools,
+                contents: trimmedHistory
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            const errMsg = err.error?.message || "Error de IA";
+            if (maxCalls === 2) chatHistory.pop(); // Remove user msg only if it was the first error
+            throw new Error(errMsg);
+        }
+        
+        const data = await response.json();
+        const candidate = data.candidates[0];
+        const part = candidate.content.parts[0];
+
+        // Add assistant's raw message (which might contain functionCall or text)
+        chatHistory.push(candidate.content);
+
+        // Check if there is a functionCall
+        if (part.functionCall) {
+            const { name, args } = part.functionCall;
+            if (name === 'filter_transactions') {
+                let filtered = [...allTransactions];
+                if (args.searchTerm) {
+                    const st = args.searchTerm.toLowerCase();
+                    filtered = filtered.filter(t => (t.description || '').toLowerCase().includes(st) || (t.notes || '').toLowerCase().includes(st));
+                }
+                if (args.category) filtered = filtered.filter(t => t.category === args.category);
+                if (args.type) filtered = filtered.filter(t => t.type === args.type);
+                if (args.month || args.year) {
+                    filtered = filtered.filter(t => {
+                        const d = t.date?.toDate?.();
+                        if (!d) return false;
+                        if (args.month && (d.getMonth() + 1) !== args.month) return false;
+                        if (args.year && d.getFullYear() !== args.year) return false;
+                        return true;
+                    });
+                }
+                
+                const totalAmount = filtered.reduce((acc, t) => acc + t.amount, 0);
+                const simplifiedList = filtered.map(t => {
+                    const d = t.date?.toDate?.() ? t.date.toDate().toISOString().split('T')[0] : 'N/A';
+                    return { fecha: d, concepto: t.description, importe: t.amount, categoria: t.category };
+                });
+
+                chatHistory.push({
+                    role: 'function',
+                    parts: [{
+                        functionResponse: {
+                            name: "filter_transactions",
+                            response: {
+                                totalEncontrado: filtered.length,
+                                importeTotal: totalAmount,
+                                transacciones: simplifiedList
+                            }
+                        }
+                    }]
+                });
+            }
+        } else if (part.text) {
+            return part.text;
+        } else {
+            return "No tengo una respuesta para eso.";
+        }
     }
-    const data = await response.json();
-    const reply = data.candidates[0].content.parts[0].text;
-
-    // Add assistant response to history
-    chatHistory.push({ role: 'model', parts: [{ text: reply }] });
-
-    return reply;
+    
+    return "Error: Excedido el límite de consultas internas.";
 }
 
 export const resetChatHistory = () => { chatHistory = []; };
@@ -173,28 +242,11 @@ export const buildFinancialContext = (transactions, budgets = []) => {
     const avgIncome = Object.values(monthsData).reduce((s, m) => s + m.income, 0) / numMonths;
     const avgExpense = Object.values(monthsData).reduce((s, m) => s + m.expense, 0) / numMonths;
 
-    // 4. Compact CSV for all transactions (Date, Type, Cat, Amount, Desc)
-    // We sort by date descending and take up to 300 latest to stay within context limits if very large
-    const sortedTxs = [...transactions].sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0)).slice(0, 500);
-    const csvHeaders = "Fecha,Tipo,Cat,Imp,Concepto";
-    const csvRows = sortedTxs.map(t => {
-        const d = t.date?.toDate?.() ? t.date.toDate().toISOString().split('T')[0] : 'N/A';
-        const type = t.type === 'income' ? 'I' : 'G';
-        const desc = (t.description || '').substring(0, 15).replace(/,/g, '');
-        return `${d},${type},${t.category || ''},${t.amount.toFixed(0)},${desc}`;
-    }).join('\n');
-
-    return `
-=== ESTADO ACTUAL ===
-MES ACTUAL: Ingresos: ${income.toFixed(2)}€, Gastos: ${expense.toFixed(2)}€, Ahorro: ${(income - expense).toFixed(2)}€
-MEDIAS HISTÓRICAS: Ingresos/mes: ${avgIncome.toFixed(2)}€, Gastos/mes: ${avgExpense.toFixed(2)}€
-SALDOS: ${JSON.stringify(accounts)}
-METAS: ${JSON.stringify(budgets.map(b => ({ cat: b.category, gastado: b.spent, limite: b.amount })))}
-
-=== HISTORIAL COMPLETO (CSV) ===
-${csvHeaders}
-${csvRows}
-`;
+    return `=== RESUMEN FINANCIERO MES ACTUAL ===
+Ingresos: ${income.toFixed(2)}€, Gastos: ${expense.toFixed(2)}€, Ahorro: ${(income - expense).toFixed(2)}€
+Medias históricas: Ingresos/mes: ${avgIncome.toFixed(2)}€, Gastos/mes: ${avgExpense.toFixed(2)}€
+Saldos de cuentas: ${JSON.stringify(accounts)}
+Presupuestos actuales: ${JSON.stringify(budgets.map(b => ({ categoria: b.category, gastado: b.spent, limite: b.amount })))}`;
 };
 
 export const compressImage = (base64Str, maxWidth = 1000, quality = 0.7) => {
