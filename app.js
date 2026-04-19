@@ -321,8 +321,8 @@ const renderTransactionsTable = (txs) => {
             <td class="px-4 py-3 text-xs text-gray-500">${dateStr}</td>
             <td class="px-4 py-3 text-sm font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">${t.type === 'income' ? '+' : '-'}${t.amount?.toFixed(2)}€</td>
             <td class="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs truncate">${t.description || '–'} ${t.receiptImage ? '<span title="Tiene ticket">📎</span>' : ''} ${(t.tags||[]).map(tag => `<span class="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 rounded-full font-bold">${tag}</span>`).join('')}</td>
-            <td class="px-4 py-3 hidden md:table-cell"><span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">${t.category||'–'}</span></td>
-            <td class="px-4 py-3 hidden md:table-cell text-xs text-gray-400">${t.account||'–'}</td>
+            <td class="px-4 py-3"><span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">${t.category||'–'}</span></td>
+            <td class="px-4 py-3 text-xs text-gray-400">${t.account||'–'}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button class="edit-btn text-xs font-black text-indigo-400 hover:text-indigo-600 mr-2 transition" data-id="${t.id}">Editar</button>
                 <button class="delete-btn text-xs font-black text-gray-300 hover:text-red-500 transition" data-id="${t.id}">✕</button>
