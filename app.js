@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, getRe
 import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { showTab, populateSelectOptions, toggleBalancesVisibility, showLoadingOverlay, hideLoadingOverlay } from "./ui.js";
 import { saveTransaction, deleteDocument, addSetting, saveBudget, saveRecurring } from "./db.js";
-import { renderIncomeExpenseChart, renderCategoryAnalysisChart, renderCashFlowChart, renderTendenciasChart, renderHeatmap } from "./charts.js";
+import { renderIncomeExpenseChart, renderCategoryAnalysisChart, renderCashFlowChart, renderTendenciasChart, renderHeatmap, renderHistoryCategoryChart } from "./charts.js";
 import { callGemini, callGeminiChat, resetChatHistory, categorizarConcepto, getConsejoDelDia, buildFinancialContext, compressImage } from "./api.js";
 import { generateAiReport, generateExlabesaReport, generateFuelReport } from "./reports.js";
 import { showToast, showSaveToast, showDeleteToast, showErrorToast, showInfoToast } from "./toast.js";
@@ -228,8 +228,11 @@ const updateDashboardFuelMetrics = (txs) => {
         if (latest && previous) {
             const lKm = latest.km - previous.km;
             const lAvg = (latest.liters / lKm) * 100;
-            const diff = ((lAvg - avgL100) / avgL100) * 100;
-            document.getElementById('dashFuelLitersComp').innerHTML = `Último: ${lAvg.toFixed(1)}L <span class="${diff > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diff > 0 ? '+' : ''}${diff.toFixed(1)}%)</span>`;
+            const eAvg = (latest.amount / lKm) * 100;
+            const diffL = ((lAvg - avgL100) / avgL100) * 100;
+            const diffE = ((eAvg - avgE100) / avgE100) * 100;
+            document.getElementById('dashFuelLitersComp').innerHTML = `Último: ${lAvg.toFixed(1)}L <span class="${diffL > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diffL > 0 ? '+' : ''}${diffL.toFixed(1)}%)</span>`;
+            document.getElementById('dashFuelEurosComp').innerHTML = `Último: ${eAvg.toFixed(2)}€ <span class="${diffE > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diffE > 0 ? '+' : ''}${diffE.toFixed(1)}%)</span>`;
         }
     }
 };
@@ -321,8 +324,8 @@ const renderTransactionsTable = (txs) => {
             <td class="px-4 py-3 text-xs text-gray-500">${dateStr}</td>
             <td class="px-4 py-3 text-sm font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">${t.type === 'income' ? '+' : '-'}${t.amount?.toFixed(2)}€</td>
             <td class="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs truncate">${t.description || '–'} ${t.receiptImage ? '<span title="Tiene ticket">📎</span>' : ''} ${(t.tags||[]).map(tag => `<span class="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 rounded-full font-bold">${tag}</span>`).join('')}</td>
-            <td class="px-4 py-3"><span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">${t.category||'–'}</span></td>
-            <td class="px-4 py-3 text-xs text-gray-400">${t.account||'–'}</td>
+            <td class="px-4 py-3 hidden md:table-cell"><span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">${t.category||'–'}</span></td>
+            <td class="px-4 py-3 hidden md:table-cell text-xs text-gray-400">${t.account||'–'}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button class="edit-btn text-xs font-black text-indigo-400 hover:text-indigo-600 mr-2 transition" data-id="${t.id}">Editar</button>
                 <button class="delete-btn text-xs font-black text-gray-300 hover:text-red-500 transition" data-id="${t.id}">✕</button>
@@ -358,13 +361,26 @@ const applyFiltersAndRender = () => {
     const e = document.getElementById('filterEndDate').value;
     const cat = document.getElementById('filterCategory').value;
     const acc = document.getElementById('filterAccount').value;
+    const concept = document.getElementById('filterConcept')?.value?.toLowerCase();
+    
     let filtered = [...allUserTransactions];
     if (s) { const sd = new Date(s); sd.setHours(0,0,0,0); filtered = filtered.filter(t => t.date?.toDate?.() >= sd); }
     if (e) { const ed = new Date(e); ed.setHours(23,59,59,999); filtered = filtered.filter(t => t.date?.toDate?.() <= ed); }
     if (cat) filtered = filtered.filter(t => t.category === cat);
     if (acc) filtered = filtered.filter(t => t.account === acc);
+    if (concept) {
+        filtered = filtered.filter(t => 
+            (t.description || '').toLowerCase().includes(concept) || 
+            (t.notes || '').toLowerCase().includes(concept) ||
+            (t.tags || []).some(tag => tag.toLowerCase().includes(concept))
+        );
+    }
+    
     filtered.sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
     renderTransactionsTable(filtered);
+    
+    const chartType = document.getElementById('historyCategoryType')?.value || 'expense';
+    renderHistoryCategoryChart(filtered, chartType);
 };
 
 // ─── NAV HELPERS ─────────────────────────────────────────────────────────────
@@ -521,7 +537,9 @@ document.getElementById('accountingBookForm').addEventListener('submit', async (
 
 // Filters & Export
 document.getElementById('applyFiltersBtn').addEventListener('click', applyFiltersAndRender);
-document.getElementById('clearFiltersBtn').addEventListener('click', () => { document.getElementById('filterStartDate').value = ''; document.getElementById('filterEndDate').value = ''; applyFiltersAndRender(); });
+document.getElementById('clearFiltersBtn').addEventListener('click', () => { document.getElementById('filterStartDate').value = ''; document.getElementById('filterEndDate').value = ''; document.getElementById('filterConcept').value = ''; applyFiltersAndRender(); });
+document.getElementById('filterConcept')?.addEventListener('input', applyFiltersAndRender);
+document.getElementById('historyCategoryType')?.addEventListener('change', applyFiltersAndRender);
 
 document.getElementById('toggleCompactBtn').addEventListener('click', (e) => {
     compactMode = !compactMode;
@@ -554,12 +572,12 @@ document.getElementById('calculatePastBalanceBtn').addEventListener('click', () 
     html += `<div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-50"><span class="text-sm font-black">Total ${target.toLocaleDateString('es-ES')}</span><span class="balance-value text-lg font-black" style="color:rgb(var(--accent))">${total.toFixed(2)} €</span></div>`;
     document.getElementById('accountsSummary').innerHTML = html;
     document.getElementById('calculatePastBalanceBtn').classList.add('hidden');
-    document.getElementById('pastBalanceDate').parentElement.classList.add('hidden');
+    document.getElementById('pastBalanceDate').classList.add('hidden');
     document.getElementById('resetBalanceBtn').classList.remove('hidden');
 });
 document.getElementById('resetBalanceBtn').addEventListener('click', () => {
     document.getElementById('calculatePastBalanceBtn').classList.remove('hidden');
-    document.getElementById('pastBalanceDate').parentElement.classList.remove('hidden');
+    document.getElementById('pastBalanceDate').classList.remove('hidden');
     document.getElementById('resetBalanceBtn').classList.add('hidden');
     document.getElementById('pastBalanceDate').value = '';
     renderAccountsSummary();

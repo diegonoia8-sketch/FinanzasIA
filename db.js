@@ -5,32 +5,22 @@ import { db, storage, dbCollections } from "./config.js";
 export const saveTransaction = async (userId, transactionId, data, base64Image = null) => {
     try {
         const docData = { ...data, userId, updatedAt: serverTimestamp() };
-        let docRefId = transactionId;
+        
+        // MIGRACIÓN A FIREBASE STORAGE
+        if (base64Image) {
+            const storageRef = ref(storage, `receipts/${userId}/${Date.now()}.jpg`);
+            await uploadString(storageRef, base64Image, 'data_url');
+            docData.receiptImage = await getDownloadURL(storageRef);
+        }
 
-        // Guardar la transacción primero para no bloquear la UI
         if (transactionId) {
             await updateDoc(doc(db, dbCollections.transactions, transactionId), docData);
+            return { status: "updated" };
         } else {
             docData.createdAt = serverTimestamp();
-            const docRef = await addDoc(collection(db, dbCollections.transactions), docData);
-            docRefId = docRef.id;
+            await addDoc(collection(db, dbCollections.transactions), docData);
+            return { status: "created" };
         }
-
-        // Subir la imagen de forma asíncrona en segundo plano
-        if (base64Image) {
-            (async () => {
-                try {
-                    const storageRef = ref(storage, `receipts/${userId}/${Date.now()}.jpg`);
-                    await uploadString(storageRef, base64Image, 'data_url');
-                    const receiptImage = await getDownloadURL(storageRef);
-                    await updateDoc(doc(db, dbCollections.transactions, docRefId), { receiptImage });
-                } catch (err) {
-                    console.error("Error al subir el ticket en segundo plano:", err);
-                }
-            })();
-        }
-
-        return { status: transactionId ? "updated" : "created", id: docRefId };
     } catch (e) {
         console.error("Error saving transaction:", e);
         throw e;

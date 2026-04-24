@@ -87,19 +87,21 @@ Si te preguntan por transacciones específicas (ej: "cuánto gasté en X", "en q
         
         const data = await response.json();
         const candidate = data.candidates[0];
-        const part = candidate.content.parts[0];
 
         // Add assistant's raw message (which might contain functionCall or text)
         chatHistory.push(candidate.content);
 
         // Check if there is a functionCall
-        if (part.functionCall) {
-            const { name, args } = part.functionCall;
+        const functionCallPart = candidate.content.parts.find(p => p.functionCall);
+        const textPart = candidate.content.parts.find(p => p.text);
+
+        if (functionCallPart) {
+            const { name, args } = functionCallPart.functionCall;
             if (name === 'filter_transactions') {
                 let filtered = [...allTransactions];
                 if (args.searchTerm) {
                     const st = args.searchTerm.toLowerCase();
-                    filtered = filtered.filter(t => (t.description || '').toLowerCase().includes(st) || (t.notes || '').toLowerCase().includes(st));
+                    filtered = filtered.filter(t => (t.description || '').toLowerCase().includes(st) || (t.notes || '').toLowerCase().includes(st) || (t.tags || []).some(tag => tag.toLowerCase().includes(st)));
                 }
                 if (args.category) filtered = filtered.filter(t => t.category === args.category);
                 if (args.type) filtered = filtered.filter(t => t.type === args.type);
@@ -133,8 +135,8 @@ Si te preguntan por transacciones específicas (ej: "cuánto gasté en X", "en q
                     }]
                 });
             }
-        } else if (part.text) {
-            return part.text;
+        } else if (textPart) {
+            return textPart.text;
         } else {
             return "No tengo una respuesta para eso.";
         }

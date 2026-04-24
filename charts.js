@@ -3,7 +3,7 @@
  * Incluye: Income/Expense, Categorías, Cash Flow, Tendencias, Heatmap
  */
 
-let incomeExpenseChart, categoryAnalysisChart, cashFlowChart, tendenciasChart;
+let incomeExpenseChart, categoryAnalysisChart, cashFlowChart, tendenciasChart, historyCategoryChart;
 
 export const renderIncomeExpenseChart = (transactions) => {
     const ctx = document.getElementById('incomeExpenseChart');
@@ -48,6 +48,37 @@ export const renderCategoryAnalysisChart = (transactions, type = 'expense', star
         return;
     }
     categoryAnalysisChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(categories),
+            datasets: [{
+                data: Object.values(categories),
+                backgroundColor: ['#4f46e5','#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#6366f1'],
+                borderWidth: 0, hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: {
+                legend: { position: 'right', labels: { usePointStyle: true, padding: 12, font: { size: 10 } } },
+                tooltip: { callbacks: { label: (i) => ` ${i.label}: ${i.raw.toFixed(2)} €` } }
+            }
+        }
+    });
+};
+
+export const renderHistoryCategoryChart = (transactions, type = 'expense') => {
+    const ctx = document.getElementById('historyCategoryChart');
+    if (!ctx) return;
+    const filtered = transactions.filter(t => t.type === type && !['Transferencia','Saldo Inicial','No Contabilizados'].includes(t.category));
+    const categories = filtered.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc; }, {});
+
+    if (historyCategoryChart) historyCategoryChart.destroy();
+    if (Object.keys(categories).length === 0) {
+        if (historyCategoryChart) historyCategoryChart.destroy();
+        return;
+    }
+    historyCategoryChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: Object.keys(categories),
