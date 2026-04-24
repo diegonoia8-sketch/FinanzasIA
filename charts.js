@@ -5,6 +5,32 @@
 
 let incomeExpenseChart, categoryAnalysisChart, cashFlowChart, tendenciasChart, historyCategoryChart;
 
+const centerTextPlugin = {
+    id: 'centerText',
+    beforeDraw: (chart) => {
+        if (chart.config.type !== 'doughnut') return;
+        const { ctx, data, chartArea: { top, bottom, left, right, width, height } } = chart;
+        ctx.save();
+        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+        if (total === 0) return;
+        const text = total.toFixed(2) + ' €';
+        
+        ctx.font = 'bold 12px Inter';
+        ctx.fillStyle = '#64748b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Calculate center of the doughnut (ignoring legend)
+        const meta = chart.getDatasetMeta(0);
+        if (meta.data.length > 0) {
+            const centerX = meta.data[0].x;
+            const centerY = meta.data[0].y;
+            ctx.fillText(text, centerX, centerY);
+        }
+        ctx.restore();
+    }
+};
+
 export const renderIncomeExpenseChart = (transactions) => {
     const ctx = document.getElementById('incomeExpenseChart');
     if (!ctx) return;
@@ -30,7 +56,8 @@ export const renderIncomeExpenseChart = (transactions) => {
                 legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16, font: { size: 11 } } },
                 tooltip: { callbacks: { label: (i) => ` ${i.label}: ${i.raw.toFixed(2)} €` } }
             }
-        }
+        },
+        plugins: [centerTextPlugin]
     });
 };
 
@@ -63,7 +90,8 @@ export const renderCategoryAnalysisChart = (transactions, type = 'expense', star
                 legend: { position: 'right', labels: { usePointStyle: true, padding: 12, font: { size: 10 } } },
                 tooltip: { callbacks: { label: (i) => ` ${i.label}: ${i.raw.toFixed(2)} €` } }
             }
-        }
+        },
+        plugins: [centerTextPlugin]
     });
 };
 
@@ -94,7 +122,8 @@ export const renderHistoryCategoryChart = (transactions, type = 'expense') => {
                 legend: { position: 'right', labels: { usePointStyle: true, padding: 12, font: { size: 10 } } },
                 tooltip: { callbacks: { label: (i) => ` ${i.label}: ${i.raw.toFixed(2)} €` } }
             }
-        }
+        },
+        plugins: [centerTextPlugin]
     });
 };
 

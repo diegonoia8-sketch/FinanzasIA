@@ -216,9 +216,11 @@ const updateDashboardFuelMetrics = (txs) => {
     if (totalKm > 0 && totalLiters > 0) {
         const avgL100 = (totalLiters / totalKm) * 100;
         const avgE100 = (totalCost / totalKm) * 100;
+        const avgPricePerLiter = totalCost / totalLiters;
         
         document.getElementById('dashFuelLiters').textContent = `${avgL100.toFixed(1)}L`;
         document.getElementById('dashFuelEuros').textContent = `${avgE100.toFixed(2)}€`;
+        document.getElementById('dashFuelPriceHist').textContent = `Media: ${avgPricePerLiter.toFixed(3)} €/L`;
         
         // 2. Último Repostaje (comparativa directa)
         const reversed = [...processed].reverse();
@@ -229,10 +231,12 @@ const updateDashboardFuelMetrics = (txs) => {
             const lKm = latest.km - previous.km;
             const lAvg = (latest.liters / lKm) * 100;
             const eAvg = (latest.amount / lKm) * 100;
+            const latestPricePerLiter = latest.amount / latest.liters;
             const diffL = ((lAvg - avgL100) / avgL100) * 100;
             const diffE = ((eAvg - avgE100) / avgE100) * 100;
             document.getElementById('dashFuelLitersComp').innerHTML = `Último: ${lAvg.toFixed(1)}L <span class="${diffL > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diffL > 0 ? '+' : ''}${diffL.toFixed(1)}%)</span>`;
             document.getElementById('dashFuelEurosComp').innerHTML = `Último: ${eAvg.toFixed(2)}€ <span class="${diffE > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diffE > 0 ? '+' : ''}${diffE.toFixed(1)}%)</span>`;
+            document.getElementById('dashFuelPriceLatest').textContent = `Último: ${latestPricePerLiter.toFixed(3)} €/L`;
         }
     }
 };
