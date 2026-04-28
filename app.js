@@ -480,7 +480,12 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
             tags
         };
         const txId = document.getElementById('transactionId').value;
-        await saveTransaction(userId, txId, data, currentScannedImage);
+        const category = document.getElementById('category').value;
+        
+        // Only save image if category is EXLABESA
+        const imageToSave = category === 'EXLABESA' ? currentScannedImage : null;
+        
+        await saveTransaction(userId, txId, data, imageToSave);
         resetTransactionForm(); currentScannedImage = null;
         document.getElementById('transactionContent').classList.add('hidden');
         document.getElementById('transactionMain').classList.remove('hidden');
@@ -603,24 +608,43 @@ if (toggleSwitch) {
 document.getElementById('scanReceiptBtn').addEventListener('click', () => document.getElementById('receiptInput').click());
 document.getElementById('receiptInput').addEventListener('change', async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    document.getElementById('scanReceiptText').textContent = 'Analizando...';
+    
+    const scanBtnText = document.getElementById('scanReceiptText');
+    const originalText = scanBtnText.textContent;
+    scanBtnText.textContent = 'Comprimiendo...';
+    
     const reader = new FileReader();
     reader.onload = async (rx) => {
-        const compressed = await compressImage(rx.target.result);
-        currentScannedImage = compressed;
-        document.getElementById('receiptPreview').src = compressed;
-        document.getElementById('receiptPreviewContainer').classList.remove('hidden');
         try {
-            const prompt = `Analiza este ticket y extrae: {"amount": number, "category": string, "date": "YYYY-MM-DD", "description": string}. Solo el JSON.`;
-            const result = await callGemini("Eres un OCR financiero preciso.", prompt, compressed);
-            const json = JSON.parse(result.replace(/```json|```/g, '').trim());
+            // Optimized compression for faster transmission
+            const compressed = await compressImage(rx.target.result, 1200, 0.8);
+            currentScannedImage = compressed;
+            document.getElementById('receiptPreview').src = compressed;
+            document.getElementById('receiptPreviewContainer').classList.remove('hidden');
+            
+            scanBtnText.textContent = 'Analizando ticket...';
+            
+            const systemPrompt = "Eres un OCR financiero preciso. Extrae los datos del ticket en formato JSON.";
+            const userPrompt = `Extrae: {"amount": number, "category": string, "date": "YYYY-MM-DD", "description": string}. Solo el JSON sin markdown.`;
+            
+            const result = await callGemini(systemPrompt, userPrompt, compressed);
+            const cleanResult = result.replace(/```json|```/g, '').trim();
+            const json = JSON.parse(cleanResult);
+            
             if (json.amount) document.getElementById('amount').value = json.amount;
             if (json.description) document.getElementById('description').value = json.description;
             if (json.date) document.getElementById('date').value = json.date;
-            if (json.category && userCategories.includes(json.category)) document.getElementById('category').value = json.category;
-            showInfoToast('Ticket escaneado');
-        } catch (err) { console.error("OCR Error:", err); }
-        document.getElementById('scanReceiptText').textContent = 'Escanear';
+            if (json.category && userCategories.includes(json.category)) {
+                document.getElementById('category').value = json.category;
+            }
+            
+            showInfoToast('Ticket analizado correctamente');
+        } catch (err) { 
+            console.error("OCR Error:", err);
+            showErrorToast('Error al analizar ticket');
+        } finally {
+            scanBtnText.textContent = originalText;
+        }
     };
     reader.readAsDataURL(file);
 });
