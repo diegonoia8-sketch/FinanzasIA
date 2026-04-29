@@ -21,5 +21,6 @@ export const dbCollections = {
     transactions: "transactions", 
     userSettings: "userSettings",
     budgets: "budgets",
-    recurring: "recurring"
+    recurring: "recurring",
+    payrolls: "payrolls"
 };

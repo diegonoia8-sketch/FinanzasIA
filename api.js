@@ -269,3 +269,46 @@ export const compressImage = (base64Str, maxWidth = 1000, quality = 0.7) => {
         };
     });
 };
+
+export async function analizarNomina(base64Data) {
+    const systemPrompt = "Eres un experto contable y experto en nóminas españolas. Tu tarea es extraer datos precisos de una nómina.";
+    const userPrompt = `Analiza este documento de nómina y extrae los siguientes campos en formato JSON:
+    {
+      "devengado": número (El Total Devengado, es decir, el total de ingresos antes de deducciones),
+      "deducir": número (El Total a Deducir, es decir, la suma de todas las deducciones, IRPF, SS, etc.),
+      "irpf": número (Retención IRPF en euros),
+      "ss": número (Deducciones seguridad social empleado),
+      "dietas": número (Importe por dietas / plus transporte / extras no salariales. 0 si no hay),
+      "locomocion": número (Importe por gastos de kilometraje / locomoción. 0 si no hay),
+      "fecha": "YYYY-MM-DD"
+    }
+    Devuelve solo el objeto JSON, sin bloques de código markdown ni texto adicional.`;
+
+    const result = await callGemini(systemPrompt, userPrompt, base64Data);
+    try {
+        const data = JSON.parse(result.replace(/```json|```/g, '').trim());
+        
+        // Realizamos los cálculos exactos en base a la petición del usuario
+        const devengado = parseFloat(data.devengado) || 0;
+        const deducir = parseFloat(data.deducir) || 0;
+        const dietas = parseFloat(data.dietas) || 0;
+        const locomocion = parseFloat(data.locomocion) || 0;
+
+        const brutoReal = devengado - dietas - locomocion;
+        const netoReal = devengado - deducir - dietas - locomocion;
+
+        return {
+            bruto: brutoReal,
+            neto: netoReal,
+            irpf: parseFloat(data.irpf) || 0,
+            ss: parseFloat(data.ss) || 0,
+            dietas: dietas,
+            locomocion: locomocion,
+            fecha: data.fecha
+        };
+    } catch (e) {
+        console.error("Error parsing Gemini payroll response:", result);
+        throw new Error("No se pudo procesar la estructura de la nómina. Revisa el archivo.");
+    }
+}
+

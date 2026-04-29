@@ -139,6 +139,7 @@
         <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="transactions">Transacciones</button>
         <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="budgets">Metas</button>
         <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="recurring">Suscripciones</button>
+        <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="payrolls">Nóminas</button>
         <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="settings">Ajustes</button>
     </nav>
 
@@ -483,7 +484,91 @@
             </div>
         </div>
 
-        <!-- ========== AJUSTES ========== -->
+        <!-- ========== NÓMINAS ========== -->
+        <div id="payrolls" class="tab-content hidden space-y-6">
+            <div class="flex items-center justify-between gap-4">
+                <div class="flex flex-col">
+                    <h1 class="text-3xl font-black text-gray-800 tracking-tight">Control de Nóminas</h1>
+                    <p class="text-xs text-gray-400">Gestiona tus ingresos profesionales y documentos oficiales</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="payrollYearFilter" class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-bold text-gray-600 outline-none focus:ring-2 focus:ring-indigo-100 transition">
+                        <option value="all">Todos los años</option>
+                    </select>
+                    <button id="changePayrollPassBtn" class="flex items-center gap-2 bg-gray-100 text-gray-500 text-[10px] font-black py-3 px-4 rounded-2xl transition hover:bg-gray-200">
+                        🔑 Cambiar Pass
+                    </button>
+                    <input type="file" id="payrollFileInput" accept="application/pdf" class="hidden">
+                    <button id="uploadPayrollBtn" class="flex items-center gap-2 text-white text-xs font-black py-3 px-6 rounded-2xl shadow-lg transition active:scale-95" style="background:rgb(var(--accent))">
+                        📄 Subir Nómina (PDF)
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="dash-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Bruto Anual (Extrapolado)</p>
+                    <p id="payrollStatsBruto" class="text-2xl font-black text-gray-800">–</p>
+                </div>
+                <div class="dash-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Neto Medio Mensual</p>
+                    <p id="payrollStatsNeto" class="text-2xl font-black text-emerald-600">–</p>
+                </div>
+                <div class="dash-card bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">IRPF Medio</p>
+                    <p id="payrollStatsIRPF" class="text-2xl font-black text-red-500">–</p>
+                </div>
+            </div>
+
+            <!-- GRÁFICO DE NÓMINAS -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-black text-gray-700 uppercase tracking-widest">Evolución Salarial</h3>
+                    <select id="payrollChartMetric" class="bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-[10px] font-black text-indigo-600 outline-none focus:ring-2 focus:ring-indigo-100 transition uppercase">
+                        <option value="bruto">Salario Bruto</option>
+                        <option value="neto">Salario Neto (IA)</option>
+                        <option value="txAmount">Ingresado (Tx)</option>
+                        <option value="irpf">Retención IRPF (€)</option>
+                        <option value="ss">Seguridad Social</option>
+                    </select>
+                </div>
+                <div class="h-64">
+                    <canvas id="payrollChart"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            <th class="p-4">Mes / Año</th>
+                            <th class="p-4">Ingresado (Tx)</th>
+                            <th class="p-4">Bruto</th>
+                            <th class="p-4">Neto (IA)</th>
+                            <th class="p-4">IRPF (€)</th>
+                            <th class="p-4 hidden md:table-cell">Seg. Social</th>
+                            <th class="p-4 hidden md:table-cell">Dietas/Loc.</th>
+                            <th class="p-4 text-center">PDF</th>
+                            <th class="p-4 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payrollsTableBody" class="text-sm divide-y divide-gray-50"></tbody>
+                    <tfoot id="payrollsTableFoot" class="bg-indigo-50/50 border-t-2 border-indigo-100 hidden">
+                        <tr class="text-[11px] font-black text-indigo-900 uppercase tracking-widest">
+                            <td class="p-4">Total</td>
+                            <td id="payrollTotalTx" class="p-4 text-indigo-700">–</td>
+                            <td id="payrollTotalBruto" class="p-4 text-gray-600">–</td>
+                            <td id="payrollTotalNeto" class="p-4 text-emerald-700">–</td>
+                            <td id="payrollTotalIRPF" class="p-4 text-gray-600">–</td>
+                            <td id="payrollTotalSS" class="p-4 hidden md:table-cell text-gray-600">–</td>
+                            <td id="payrollTotalDietas" class="p-4 hidden md:table-cell text-gray-600">–</td>
+                            <td class="p-4"></td>
+                            <td class="p-4"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
         <div id="settings" class="tab-content hidden max-w-3xl mx-auto space-y-5">
 
             <!-- API Key -->
@@ -589,6 +674,7 @@
             <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="transactions"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" stroke-linecap="round"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Trans</span></button>
             <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="budgets"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Metas</span></button>
             <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="recurring"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Suscrip</span></button>
+            <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="payrolls"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Nóminas</span></button>
             <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="settings"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Ajustes</span></button>
         </div>
     </nav>
@@ -599,7 +685,50 @@
 <div id="exlabesaPdfContainer" class="hidden bg-white p-8 w-full max-w-4xl mx-auto"></div>
 <div id="fuelPdfContainer" class="hidden bg-white p-8 w-full max-w-4xl mx-auto"></div>
 
-<!-- Error catcher -->
+<!-- MODAL PASSWORD NÓMINAS -->
+<div id="payrollPasswordModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm animate-scale-in text-center text-gray-900">
+        <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </div>
+        <h2 id="payrollPassTitle" class="text-xl font-black mb-2">Área Restringida</h2>
+        <p id="payrollPassDesc" class="text-xs text-gray-400 mb-6">Introduce tu contraseña para acceder al control de nóminas.</p>
+        <input type="password" id="payrollPasswordInput" class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-center text-2xl tracking-widest outline-none focus:ring-2 focus:ring-indigo-200 mb-4" placeholder="••••">
+        <button id="unlockPayrollsBtn" class="w-full text-white font-black py-4 rounded-2xl shadow-xl transition active:scale-95" style="background:rgb(var(--accent))">Acceder</button>
+        <button id="cancelPayrollsBtn" class="mt-4 text-xs font-bold text-gray-400 hover:text-gray-600 transition">Cancelar</button>
+    </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN NÓMINA -->
+<div id="confirmPayrollModal" class="hidden fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-md animate-scale-in text-gray-900">
+        <h2 class="text-xl font-black mb-4">Confirmar Datos Extraídos</h2>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase">Mes/Año</label><input type="month" id="confPayrollMonth" class="w-full bg-gray-50 border border-gray-100 rounded-xl p-2 text-sm outline-none"></div>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase">Salario Bruto</label><input type="number" id="confPayrollBruto" step="0.01" class="w-full bg-gray-50 border border-gray-100 rounded-xl p-2 text-sm font-bold outline-none"></div>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase">Salario Neto</label><input type="number" id="confPayrollNeto" step="0.01" class="w-full bg-gray-50 border border-emerald-100 bg-emerald-50/30 rounded-xl p-2 text-sm font-black text-emerald-600 outline-none"></div>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase">IRPF (€)</label><input type="number" id="confPayrollIRPF" step="0.01" class="w-full bg-gray-50 border border-red-100 bg-red-50/30 rounded-xl p-2 text-sm font-bold text-red-500 outline-none"></div>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase">Seguridad Social</label><input type="number" id="confPayrollSS" step="0.01" class="w-full bg-gray-50 border border-gray-100 rounded-xl p-2 text-sm outline-none"></div>
+            <div><label class="text-[10px] font-bold text-gray-400 uppercase">Dietas</label><input type="number" id="confPayrollDietas" step="0.01" class="w-full bg-gray-50 border border-gray-100 rounded-xl p-2 text-sm outline-none"></div>
+            <div class="col-span-2"><label class="text-[10px] font-bold text-gray-400 uppercase">Locomoción / Kilometraje</label><input type="number" id="confPayrollLocomocion" step="0.01" class="w-full bg-gray-50 border border-gray-100 rounded-xl p-2 text-sm outline-none"></div>
+        </div>
+        <div class="flex gap-3">
+            <button id="cancelConfPayrollBtn" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-2xl font-bold text-sm">Descartar</button>
+            <button id="saveConfPayrollBtn" class="flex-1 py-3 text-white rounded-2xl font-black text-sm shadow-lg" style="background:rgb(var(--accent))">Guardar Nómina</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL CAMBIAR CONTRASEÑA NÓMINAS -->
+<div id="changePayrollPasswordModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[10001] flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm animate-scale-in text-center text-gray-900">
+        <h2 class="text-xl font-black mb-6">Cambiar Contraseña</h2>
+        <input type="password" id="oldPayrollPassInput" class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-center mb-2 outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Contraseña actual">
+        <input type="password" id="newPayrollPassInput" class="w-full bg-gray-50 border border-gray-100 rounded-2xl p-4 text-center mb-6 outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Nueva contraseña">
+        <button id="confirmChangePassBtn" class="w-full text-white font-black py-4 rounded-2xl shadow-xl transition active:scale-95" style="background:rgb(var(--accent))">Actualizar</button>
+        <button id="closeChangePassModal" class="mt-4 text-xs font-bold text-gray-400 hover:text-gray-600 transition">Cancelar</button>
+    </div>
+</div>
 <script>
     window.addEventListener('error', e => { const b = document.getElementById('jsBanner'); if(b){ b.textContent='⚠️ '+e.message+' ('+e.filename+':'+e.lineno+')'; b.classList.remove('hidden'); }});
     window.addEventListener('unhandledrejection', e => { const b = document.getElementById('jsBanner'); if(b){ b.textContent='⚠️ '+( e.reason?.message||JSON.stringify(e.reason)); b.classList.remove('hidden'); }});

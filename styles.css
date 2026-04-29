@@ -244,3 +244,45 @@ body {
 
 /* ===== VOICE BTN ===== */
 .voice-btn-active { animation: pulse-soft .8s infinite; background: #ef4444 !important; }
+
+/* Payrolls styles */
+#payrollsTableBody tr { transition: background 0.2s; }
+#payrollsTableBody tr:hover { background: rgba(var(--accent), 0.05); }
+
+.payroll-download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    color: #475569;
+    transition: all 0.2s;
+}
+.payroll-download-btn:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+    transform: scale(1.1);
+}
+
+.irpf-input {
+    width: 70px;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    padding: 2px 4px;
+    border-radius: 6px;
+    font-weight: 700;
+    text-align: right;
+    color: #ef4444;
+}
+.irpf-input:focus {
+    background: white !important;
+    border-color: #e2e8f0 !important;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(var(--accent), 0.1);
+}
+.dark .irpf-input:focus {
+    background: rgb(var(--card)) !important;
+}
+

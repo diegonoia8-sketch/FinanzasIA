@@ -1,4 +1,4 @@
-import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, getDoc, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, query, where, onSnapshot, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 import { db, storage, dbCollections } from "./config.js";
 
@@ -74,3 +74,32 @@ export const saveRecurring = async (userId, data) => {
         lastActivatedAt: serverTimestamp() 
     });
 };
+
+export const savePayroll = async (userId, payrollData, pdfBase64 = null) => {
+    try {
+        const docData = { ...payrollData, userId, updatedAt: serverTimestamp() };
+        
+        if (pdfBase64) {
+            // Guardamos directamente el Base64 en Firestore para evitar costes de Storage
+            docData.pdfBase64 = pdfBase64;
+        }
+
+        const payrollId = `${userId}_${payrollData.year}_${payrollData.month}`;
+        await setDoc(doc(db, dbCollections.payrolls, payrollId), docData, { merge: true });
+        return { status: "saved", id: payrollId };
+    } catch (e) {
+        console.error("Error saving payroll:", e);
+        throw e;
+    }
+};
+
+export const updatePayrollIRPF = async (payrollId, newIRPF) => {
+    try {
+        await updateDoc(doc(db, dbCollections.payrolls, payrollId), { irpf: parseFloat(newIRPF), updatedAt: serverTimestamp() });
+        return true;
+    } catch (e) {
+        console.error("Error updating IRPF:", e);
+        return false;
+    }
+};
+

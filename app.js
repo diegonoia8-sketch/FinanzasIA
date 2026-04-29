@@ -1,10 +1,10 @@
 import { auth, db, dbCollections } from "./config.js";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { showTab, populateSelectOptions, toggleBalancesVisibility, showLoadingOverlay, hideLoadingOverlay } from "./ui.js";
-import { saveTransaction, deleteDocument, addSetting, saveBudget, saveRecurring } from "./db.js";
+import { saveTransaction, deleteDocument, addSetting, saveBudget, saveRecurring, savePayroll, updatePayrollIRPF } from "./db.js";
 import { renderIncomeExpenseChart, renderCategoryAnalysisChart, renderCashFlowChart, renderTendenciasChart, renderHeatmap, renderHistoryCategoryChart } from "./charts.js";
-import { callGemini, callGeminiChat, resetChatHistory, categorizarConcepto, getConsejoDelDia, buildFinancialContext, compressImage } from "./api.js";
+import { callGemini, callGeminiChat, resetChatHistory, categorizarConcepto, getConsejoDelDia, buildFinancialContext, compressImage, analizarNomina } from "./api.js";
 import { generateAiReport, generateExlabesaReport, generateFuelReport } from "./reports.js";
 import { showToast, showSaveToast, showDeleteToast, showErrorToast, showInfoToast } from "./toast.js";
 import { setupBudgetsListener, renderBudgetList, setupRecurringListener, renderRecurringList, renderUpcomingPayments, checkAndRegisterRecurring } from "./features.js";
@@ -24,6 +24,12 @@ let budgetsUnsubscribe = null;
 let recurringUnsubscribe = null;
 let compactMode = false;
 let pendingCsvTransactions = [];
+let allUserPayrolls = [];
+let payrollsPassword = "";
+let currentPayrollPDF = null;
+let currentPayrollData = null;
+let payrollTabUnlocked = false;
+let payrollChartInstance = null;
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 const showAuthScreen = () => { document.getElementById('authScreen').classList.remove('hidden'); document.getElementById('mainApp').classList.add('hidden'); };
@@ -53,6 +59,9 @@ const setupRealtimeListeners = (uid) => {
     onSnapshot(query(collection(db, dbCollections.transactions), where("userId", "==", uid)), (snapshot) => {
         allUserTransactions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         renderDashboard();
+        renderPayrollsTable();
+        updatePayrollStats();
+        renderPayrollsChart();
         if (!document.getElementById('transactionHistory').classList.contains('hidden')) applyFiltersAndRender();
         if (budgetsUnsubscribe) budgetsUnsubscribe();
         budgetsUnsubscribe = setupBudgetsListener(uid, allUserTransactions, (budgets) => {
@@ -103,17 +112,26 @@ const setupRealtimeListeners = (uid) => {
                 }
             })
         );
-        // Auto-register today's subscriptions
         const registered = await checkAndRegisterRecurring(uid, items, allUserTransactions);
         if (registered.length > 0) showInfoToast(`Auto-registrado: ${registered.join(', ')}`);
     });
+
+    // Payrolls
+    onSnapshot(query(collection(db, dbCollections.payrolls), where("userId", "==", uid), orderBy("date", "desc")), (snapshot) => {
+        allUserPayrolls = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderPayrollsTable();
+        updatePayrollStats();
+        renderPayrollsChart();
+    });
 };
+
 
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 const renderSettings = (settings) => {
     userCategories = settings.categories || [];
     userAccounts = settings.accounts || [];
     userAccountingBooks = settings.accountingBooks || [];
+    payrollsPassword = settings.payrollsPassword || "";
 
     const renderChips = (elementId, items, type) => {
         const el = document.getElementById(elementId);
@@ -418,7 +436,15 @@ onAuthStateChanged(auth, (user) => {
 
 // ─── EVENT LISTENERS ─────────────────────────────────────────────────────────
 // Tabs
-document.querySelectorAll('.tab-button').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
+document.querySelectorAll('.tab-button').forEach(btn => btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    if (tab === 'payrolls') {
+        verifyPayrollAccess();
+    } else {
+        showTab(tab);
+    }
+}));
+
 
 // Transaction navigation
 document.getElementById('registerTransactionBtn').addEventListener('click', showTransactionMenu);
@@ -872,3 +898,429 @@ document.addEventListener('keydown', (e) => {
 
 // Delete all tickets btn
 document.getElementById('deleteAllTicketsBtn')?.addEventListener('click', () => { showInfoToast('Función de purga próximamente'); });
+
+// ─── PAYROLLS LOGIC ─────────────────────────────────────────────────────────
+
+const verifyPayrollAccess = () => {
+    if (!payrollsPassword) {
+        document.getElementById('payrollPassTitle').textContent = "Configurar Contraseña";
+        document.getElementById('payrollPassDesc').textContent = "Establece una contraseña para proteger tus nóminas.";
+        document.getElementById('payrollPasswordModal').classList.remove('hidden');
+    } else {
+        document.getElementById('payrollPassTitle').textContent = "Área Restringida";
+        document.getElementById('payrollPassDesc').textContent = "Introduce tu contraseña para acceder al control de nóminas.";
+        document.getElementById('payrollPasswordModal').classList.remove('hidden');
+    }
+    document.getElementById('payrollPasswordInput').focus();
+};
+
+document.getElementById('unlockPayrollsBtn').addEventListener('click', async () => {
+    const passInput = document.getElementById('payrollPasswordInput').value;
+    if (!payrollsPassword) {
+        if (passInput.length < 4) return showErrorToast('Mínimo 4 caracteres');
+        await updateDoc(doc(db, dbCollections.userSettings, userId), { payrollsPassword: passInput });
+        payrollsPassword = passInput;
+        showSaveToast('Contraseña establecida');
+        document.getElementById('payrollPasswordModal').classList.add('hidden');
+        showTab('payrolls');
+    } else {
+        if (passInput === payrollsPassword) {
+            document.getElementById('payrollPasswordModal').classList.add('hidden');
+            payrollTabUnlocked = true;
+            showTab('payrolls');
+            renderPayrollsTable();
+            updatePayrollStats();
+            renderPayrollsChart();
+            document.getElementById('payrollPasswordInput').value = '';
+        } else {
+            showErrorToast('Contraseña incorrecta');
+        }
+    }
+});
+
+document.getElementById('cancelPayrollsBtn').addEventListener('click', () => {
+    document.getElementById('payrollPasswordModal').classList.add('hidden');
+    document.getElementById('payrollPasswordInput').value = '';
+    if (!payrollTabUnlocked) showTab('dashboard');
+});
+
+// Cambiar Contraseña Logic
+document.getElementById('changePayrollPassBtn')?.addEventListener('click', () => {
+    document.getElementById('changePayrollPasswordModal').classList.remove('hidden');
+});
+
+document.getElementById('closeChangePassModal').addEventListener('click', () => {
+    document.getElementById('changePayrollPasswordModal').classList.add('hidden');
+    document.getElementById('oldPayrollPassInput').value = '';
+    document.getElementById('newPayrollPassInput').value = '';
+});
+
+document.getElementById('confirmChangePassBtn').addEventListener('click', async () => {
+    const oldPass = document.getElementById('oldPayrollPassInput').value;
+    const newPass = document.getElementById('newPayrollPassInput').value;
+    if (oldPass !== payrollsPassword) return showErrorToast('Contraseña actual incorrecta');
+    if (newPass.length < 4) return showErrorToast('Mínimo 4 caracteres');
+    showLoadingOverlay();
+    try {
+        await updateDoc(doc(db, dbCollections.userSettings, userId), { payrollsPassword: newPass });
+        payrollsPassword = newPass;
+        showToast('Contraseña actualizada', 'success');
+        document.getElementById('changePayrollPasswordModal').classList.add('hidden');
+        document.getElementById('oldPayrollPassInput').value = '';
+        document.getElementById('newPayrollPassInput').value = '';
+    } catch (e) {
+        showErrorToast('Error al actualizar');
+    } finally {
+        hideLoadingOverlay();
+    }
+});
+
+const guessPayrollMonth = (dateStr, description) => {
+    const desc = (description || "").toLowerCase();
+    const monthsMap = {
+        "enero": 0, "ene": 0,
+        "febrero": 1, "feb": 1,
+        "marzo": 2, "mar": 2,
+        "abril": 3, "abr": 3,
+        "mayo": 4, "may": 4,
+        "junio": 5, "jun": 5,
+        "julio": 6, "jul": 6,
+        "agosto": 7, "ago": 7,
+        "septiembre": 8, "sept": 8, "sep": 8,
+        "octubre": 9, "oct": 9,
+        "noviembre": 10, "nov": 10,
+        "diciembre": 11, "dic": 11
+    };
+    
+    let foundMonth = -1;
+    for(const [key, val] of Object.entries(monthsMap)) {
+        const regex = new RegExp(`\\b${key}\\b`, 'i');
+        if (regex.test(desc)) {
+            foundMonth = val;
+            break;
+        }
+    }
+    
+    let yearMatch = desc.match(/20\d{2}/) || desc.match(/\b\d{2}\b/);
+    let foundYear = null;
+    if (yearMatch) {
+       foundYear = parseInt(yearMatch[0]);
+       if (foundYear < 100) foundYear += 2000;
+    }
+
+    const txDate = new Date(dateStr);
+    let finalYear = txDate.getFullYear();
+    let finalMonth = txDate.getMonth() + 1; // 1-12
+
+    if (foundMonth !== -1) {
+        finalMonth = foundMonth + 1;
+        if (foundYear) finalYear = foundYear;
+        else {
+            if (finalMonth === 12 && txDate.getMonth() === 0) finalYear--;
+            else if (finalMonth === 1 && txDate.getMonth() === 11) finalYear++;
+        }
+    } else {
+        // Asumir mes anterior si se cobra del 1 al 15
+        if (txDate.getDate() <= 15) {
+            finalMonth--;
+            if (finalMonth === 0) {
+                finalMonth = 12;
+                finalYear--;
+            }
+        }
+    }
+    return { year: finalYear, month: finalMonth };
+};
+
+const getUnifiedPayrolls = () => {
+    const unified = {};
+
+    allUserTransactions.forEach(t => {
+        // Normalizar categoría para ignorar acentos y mayúsculas
+        const catNormalized = (t.category || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        const descNormalized = (t.description || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+        
+        // El tipo interno es 'income', no 'Ingreso'
+        const isNomina = (catNormalized === 'nomina' || descNormalized.includes('nomina')) && t.type === 'income';
+        if (!isNomina) return;
+
+        const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
+        const guessedDate = guessPayrollMonth(date, t.description);
+        
+        // Usamos el ID de la transacción como clave principal para asegurar el vínculo
+        const key = t.id;
+        
+        if (!unified[key]) {
+            unified[key] = {
+                year: guessedDate.year,
+                month: guessedDate.month,
+                txAmount: t.amount,
+                txDescription: t.description,
+                txId: t.id,
+                hasTx: true
+            };
+        }
+    });
+
+    allUserPayrolls.forEach(p => {
+        // Si la nómina tiene un txId asociado, lo usamos para unirla a la transacción
+        // Si no (entrada manual), usamos el año_mes como clave
+        const key = p.txId || `${p.year}_${p.month}`;
+        if (!unified[key]) {
+            unified[key] = { ...p, hasPayroll: true };
+        } else {
+            unified[key] = { ...unified[key], ...p, hasPayroll: true };
+        }
+    });
+
+    return Object.values(unified).sort((a,b) => b.year - a.year || b.month - a.month);
+};
+
+const populatePayrollYearFilter = (entries) => {
+    const select = document.getElementById('payrollYearFilter');
+    if (!select) return;
+    const current = select.value;
+    const years = [...new Set(entries.map(e => e.year))].sort((a,b) => b - a);
+    select.innerHTML = '<option value="all">Todos los años</option>' + 
+        years.map(y => `<option value="${y}">${y}</option>`).join('');
+    select.value = current;
+};
+
+const renderPayrollsChart = () => {
+    const ctx = document.getElementById('payrollChart')?.getContext('2d');
+    if (!ctx || !payrollTabUnlocked) return;
+    
+    const year = document.getElementById('payrollYearFilter').value;
+    const metric = document.getElementById('payrollChartMetric').value;
+    
+    let entries = getUnifiedPayrolls().sort((a,b) => a.year - b.year || a.month - b.month);
+    if (year !== 'all') entries = entries.filter(e => e.year == year);
+    
+    if (payrollChartInstance) payrollChartInstance.destroy();
+    
+    const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const labels = entries.map(e => `${monthNames[e.month-1]} ${e.year.toString().slice(-2)}`);
+    const data = entries.map(e => e[metric] || (metric === 'txAmount' ? e.txAmount : 0) || 0);
+    
+    payrollChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: document.getElementById('payrollChartMetric').options[document.getElementById('payrollChartMetric').selectedIndex].text,
+                data: data,
+                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                borderColor: 'rgb(99, 102, 241)',
+                borderWidth: 2,
+                borderRadius: 8,
+                barThickness: 20
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b', titleFont: { weight: 'bold' } } },
+            scales: {
+                y: { beginAtZero: true, grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10, weight: 'bold' } } },
+                x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10, weight: 'bold' } } }
+            }
+        }
+    });
+};
+
+const renderPayrollsTable = () => {
+    const tbody = document.getElementById('payrollsTableBody');
+    if (!tbody || !payrollTabUnlocked) return;
+    
+    const rawEntries = getUnifiedPayrolls();
+    populatePayrollYearFilter(rawEntries);
+    
+    const year = document.getElementById('payrollYearFilter').value;
+    const entries = year === 'all' ? rawEntries : rawEntries.filter(e => e.year == year);
+    
+    if (!entries.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="p-10 text-center text-gray-300">No hay datos para este periodo.</td></tr>`;
+        document.getElementById('payrollsTableFoot').classList.add('hidden');
+        return;
+    }
+
+    let totals = { tx: 0, bruto: 0, neto: 0, irpf: 0, ss: 0, dietasLoc: 0 };
+
+    tbody.innerHTML = entries.map(p => {
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        const label = `${monthNames[p.month - 1]} ${p.year}`;
+        const hasPDF = !!(p.pdfUrl || p.pdfBase64);
+        const downloadUrl = p.pdfBase64 || p.pdfUrl;
+        
+        totals.tx += p.txAmount || 0;
+        totals.bruto += p.bruto || 0;
+        totals.neto += p.neto || 0;
+        totals.irpf += p.irpf || 0;
+        totals.ss += p.ss || 0;
+        totals.dietasLoc += (p.dietas || 0) + (p.locomocion || 0);
+
+        return `
+            <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition">
+                <td class="p-4">
+                    <div class="font-black text-gray-700">${label}</div>
+                    <div class="text-[9px] text-gray-400 font-bold uppercase">${p.hasTx ? 'Detectado' : 'Manual'}</div>
+                </td>
+                <td class="p-4 font-black text-indigo-600">
+                    ${p.txAmount ? p.txAmount.toFixed(2)+'€' : '–'}
+                </td>
+                <td class="p-4 font-bold text-gray-400">${p.bruto ? p.bruto.toFixed(2)+'€' : '–'}</td>
+                <td class="p-4 font-black text-emerald-600">${p.neto ? p.neto.toFixed(2)+'€' : '–'}</td>
+                <td class="p-4 font-bold text-gray-600">
+                    ${p.irpf ? p.irpf.toFixed(2)+'€' : '–'}
+                </td>
+                <td class="p-4 hidden md:table-cell text-gray-400">${p.ss ? p.ss.toFixed(2)+'€' : '–'}</td>
+                <td class="p-4 hidden md:table-cell text-gray-400">${p.hasPayroll ? ((p.dietas||0) + (p.locomocion||0)).toFixed(2)+'€' : '–'}</td>
+                <td class="p-4 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        ${hasPDF ? `<a href="${downloadUrl}" download="Nomina_${p.year}_${p.month}.pdf" target="_blank" class="payroll-download-btn" title="Descargar PDF">📥</a>` : ''}
+                        <button class="upload-to-row-btn text-[10px] bg-indigo-50 text-indigo-600 font-black py-1 px-3 rounded-lg hover:bg-indigo-100 transition" 
+                                data-month="${p.year}-${String(p.month).padStart(2,'0')}"
+                                data-txid="${p.txId || ''}">
+                            ${hasPDF ? '🔄 Reemplazar' : '📄 Subir PDF'}
+                        </button>
+                    </div>
+                </td>
+                <td class="p-4 text-right">
+                    ${hasPDF ? `<button class="delete-pdf-btn text-gray-300 hover:text-red-500 transition" data-id="${p.id}" title="Eliminar solo el PDF">📄✕</button>` : ''}
+                </td>
+            </tr>`;
+    }).join('');
+
+    document.getElementById('payrollsTableFoot').classList.remove('hidden');
+    document.getElementById('payrollTotalTx').textContent = totals.tx > 0 ? totals.tx.toFixed(2) + '€' : '–';
+    document.getElementById('payrollTotalBruto').textContent = totals.bruto > 0 ? totals.bruto.toFixed(2) + '€' : '–';
+    document.getElementById('payrollTotalNeto').textContent = totals.neto > 0 ? totals.neto.toFixed(2) + '€' : '–';
+    document.getElementById('payrollTotalIRPF').textContent = totals.irpf > 0 ? totals.irpf.toFixed(2) + '€' : '–';
+    document.getElementById('payrollTotalSS').textContent = totals.ss > 0 ? totals.ss.toFixed(2) + '€' : '–';
+    document.getElementById('payrollTotalDietas').textContent = totals.dietasLoc > 0 ? totals.dietasLoc.toFixed(2) + '€' : '–';
+
+    tbody.querySelectorAll('.delete-pdf-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            if (confirm('¿Eliminar el PDF asociado a esta nómina? (Los datos registrados se mantendrán)')) {
+                await updateDoc(doc(db, dbCollections.payrolls, e.currentTarget.dataset.id), {
+                    pdfBase64: null,
+                    pdfUrl: null
+                });
+                showDeleteToast('PDF eliminado');
+            }
+        });
+    });
+
+    tbody.querySelectorAll('.upload-to-row-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const month = e.target.dataset.month;
+            const txId = e.target.dataset.txid;
+            document.getElementById('payrollFileInput').dataset.targetMonth = month;
+            document.getElementById('payrollFileInput').dataset.targetTxId = txId || "";
+            document.getElementById('payrollFileInput').click();
+        });
+    });
+};
+
+const updatePayrollStats = () => {
+    if (!payrollTabUnlocked) return;
+    const year = document.getElementById('payrollYearFilter').value;
+    const rawEntries = getUnifiedPayrolls().filter(p => p.hasPayroll);
+    const entries = year === 'all' ? rawEntries : rawEntries.filter(e => e.year == year);
+    
+    if (!entries.length) {
+        document.getElementById('payrollStatsBruto').textContent = '–';
+        document.getElementById('payrollStatsNeto').textContent = '–';
+        document.getElementById('payrollStatsIRPF').textContent = '–';
+        return;
+    }
+    const latest = entries[0];
+    document.getElementById('payrollStatsBruto').textContent = `${(latest.bruto * 12).toLocaleString('es-ES')}€`;
+    const avgNeto = entries.reduce((s,p) => s + p.neto, 0) / entries.length;
+    document.getElementById('payrollStatsNeto').textContent = `${avgNeto.toFixed(2)}€`;
+    const avgIRPFPercent = entries.reduce((s,p) => s + (p.irpf / p.bruto * 100), 0) / entries.length;
+    document.getElementById('payrollStatsIRPF').textContent = `${avgIRPFPercent.toFixed(1)}%`;
+};
+
+document.getElementById('payrollYearFilter')?.addEventListener('change', () => {
+    renderPayrollsTable();
+    updatePayrollStats();
+    renderPayrollsChart();
+});
+
+document.getElementById('payrollChartMetric')?.addEventListener('change', renderPayrollsChart);
+
+document.getElementById('uploadPayrollBtn').addEventListener('click', () => {
+    delete document.getElementById('payrollFileInput').dataset.targetMonth;
+    delete document.getElementById('payrollFileInput').dataset.targetTxId;
+    document.getElementById('payrollFileInput').click();
+});
+
+document.getElementById('payrollFileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    const targetMonth = e.target.dataset.targetMonth;
+    if (!file) return;
+    showLoadingOverlay();
+    try {
+        const reader = new FileReader();
+        reader.onload = async (rx) => {
+            const base64 = rx.target.result;
+            currentPayrollPDF = base64;
+            const data = await analizarNomina(base64);
+            currentPayrollData = data;
+            const dateStr = targetMonth || (data.fecha ? data.fecha.substring(0,7) : new Date().toISOString().substring(0,7));
+            document.getElementById('confPayrollMonth').value = dateStr;
+            document.getElementById('confPayrollBruto').value = data.bruto;
+            document.getElementById('confPayrollNeto').value = data.neto;
+            document.getElementById('confPayrollIRPF').value = data.irpf;
+            document.getElementById('confPayrollSS').value = data.ss;
+            document.getElementById('confPayrollDietas').value = data.dietas;
+            document.getElementById('confPayrollLocomocion').value = data.locomocion;
+            hideLoadingOverlay();
+            document.getElementById('confirmPayrollModal').classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    } catch (err) {
+        hideLoadingOverlay();
+        showErrorToast('Error al procesar el PDF');
+    }
+});
+
+document.getElementById('cancelConfPayrollBtn').addEventListener('click', () => {
+    document.getElementById('confirmPayrollModal').classList.add('hidden');
+    currentPayrollPDF = null; currentPayrollData = null;
+    document.getElementById('payrollFileInput').value = '';
+});
+
+document.getElementById('saveConfPayrollBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('saveConfPayrollBtn');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        const monthVal = document.getElementById('confPayrollMonth').value;
+        const targetTxId = document.getElementById('payrollFileInput').dataset.targetTxId;
+        const [year, month] = monthVal.split('-').map(Number);
+        const finalData = {
+            year, month,
+            txId: targetTxId || null,
+            bruto: parseFloat(document.getElementById('confPayrollBruto').value),
+            neto: parseFloat(document.getElementById('confPayrollNeto').value),
+            irpf: parseFloat(document.getElementById('confPayrollIRPF').value),
+            ss: parseFloat(document.getElementById('confPayrollSS').value),
+            dietas: parseFloat(document.getElementById('confPayrollDietas').value),
+            locomocion: parseFloat(document.getElementById('confPayrollLocomocion').value),
+            date: new Date(year, month - 1, 1)
+        };
+        await savePayroll(userId, finalData, currentPayrollPDF);
+        showSaveToast('Nómina');
+        document.getElementById('confirmPayrollModal').classList.add('hidden');
+        currentPayrollPDF = null; currentPayrollData = null;
+        document.getElementById('payrollFileInput').value = '';
+        renderPayrollsChart(); // Refresh chart after save
+    } catch (err) {
+        showErrorToast('Error al guardar nómina');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Guardar Nómina';
+    }
+});
+
+
