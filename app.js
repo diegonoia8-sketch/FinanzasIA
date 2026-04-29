@@ -944,6 +944,35 @@ document.getElementById('cancelPayrollsBtn').addEventListener('click', () => {
     if (!payrollTabUnlocked) showTab('dashboard');
 });
 
+document.getElementById('forgotPayrollPassBtn')?.addEventListener('click', async () => {
+    if (confirm("Para restablecer la contraseña por seguridad, debes verificar tu identidad iniciando sesión con tu cuenta de Google. ¿Continuar?")) {
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            if (result.user.uid === userId) {
+                // Clear password in Firestore
+                await updateDoc(doc(db, dbCollections.userSettings, userId), { payrollsPassword: null });
+                payrollsPassword = null;
+                
+                // Unlock tab
+                document.getElementById('payrollPasswordModal').classList.add('hidden');
+                payrollTabUnlocked = true;
+                showTab('payrolls');
+                renderPayrollsTable();
+                updatePayrollStats();
+                renderPayrollsChart();
+                
+                showInfoToast("Identidad verificada. Se ha eliminado la contraseña.");
+            } else {
+                showErrorToast("La cuenta de Google no coincide.");
+            }
+        } catch (e) {
+            console.error(e);
+            showErrorToast("Error al verificar identidad.");
+        }
+    }
+});
+
 // Cambiar Contraseña Logic
 document.getElementById('changePayrollPassBtn')?.addEventListener('click', () => {
     document.getElementById('changePayrollPasswordModal').classList.remove('hidden');
