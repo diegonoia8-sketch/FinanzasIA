@@ -140,6 +140,7 @@
         <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="budgets">Metas</button>
         <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="recurring">Suscripciones</button>
         <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="payrolls">Nóminas</button>
+        <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="investments">Inversiones</button>
         <button class="tab-button px-4 py-3 text-sm font-bold text-gray-400" data-tab="settings">Ajustes</button>
     </nav>
 
@@ -150,8 +151,8 @@
 
             <!-- Action buttons -->
             <div class="flex flex-wrap gap-2 justify-end">
-                <button id="openFuelModalBtn" class="flex items-center gap-1.5 bg-white border text-amber-700 border-amber-200 text-xs font-bold py-2 px-3 rounded-full hover:bg-amber-50 transition shadow-sm">⚡ Combustible</button>
-                <button id="openExlabesaModalBtn" class="flex items-center gap-1.5 bg-white border text-emerald-700 border-emerald-200 text-xs font-bold py-2 px-3 rounded-full hover:bg-emerald-50 transition shadow-sm">📄 Dietas</button>
+                <button id="openFuelModalBtn" class="flex items-center gap-1.5 bg-amber-500 text-white text-xs font-bold py-2 px-3 rounded-full hover:bg-amber-600 transition shadow-lg active:scale-95">⚡ Combustible</button>
+                <button id="openExlabesaModalBtn" class="flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold py-2 px-3 rounded-full hover:bg-emerald-700 transition shadow-lg active:scale-95">📄 Dietas</button>
                 <button id="generatePdfBtn" class="flex items-center gap-1.5 text-white text-xs font-bold py-2 px-4 rounded-full shadow-lg transition active:scale-95" style="background:rgb(var(--accent))">📊 Resumen IA 30d</button>
             </div>
 
@@ -587,6 +588,138 @@
                 </div>
             </div>
         </div>
+        <!-- ========== INVESTMENTS ========== -->
+        <div id="investments" class="tab-content hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Resumen de Cartera</h3>
+                <div class="flex gap-2">
+                    <select id="invFilterYear" class="text-[10px] font-bold bg-white border border-gray-100 rounded-lg p-2 outline-none shadow-sm"></select>
+                    <select id="invFilterMonth" class="text-[10px] font-bold bg-white border border-gray-100 rounded-lg p-2 outline-none shadow-sm">
+                        <option value="all">Todo el año</option>
+                        <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
+                        <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
+                        <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
+                        <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Portfolio Summary -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Resultado Total Cerrado</p>
+                    <p id="invTotalResult" class="text-2xl font-black text-gray-800">–</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ROI Medio</p>
+                    <p id="invAvgROI" class="text-2xl font-black text-gray-800">–</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Operaciones Cerradas</p>
+                    <p id="invClosedCount" class="text-2xl font-black text-gray-800">–</p>
+                </div>
+            </div>
+
+            <!-- Investment Form -->
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                <h3 class="text-sm font-black text-gray-700 uppercase tracking-widest mb-4">Registro de Operación</h3>
+                <form id="investmentForm" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <input type="hidden" id="invId">
+                    <div class="col-span-1">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Nº Operación</label>
+                        <input type="text" id="invOpId" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Ej: 101" required>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Ticker</label>
+                        <input type="text" id="invTicker" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100 uppercase" placeholder="Ej: AAPL" required>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Concepto</label>
+                        <input type="text" id="invDescription" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Ej: Compra Apple Inc." required>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Nº de Acciones</label>
+                        <input type="number" id="invShares" step="0.00001" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="0.00" required>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Cantidad Total (€)</label>
+                        <input type="number" id="invAmount" step="0.01" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="0.00" required>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Tipo</label>
+                        <select id="invType" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100">
+                            <option value="expense">Compra</option>
+                            <option value="income">Venta</option>
+                        </select>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Fecha</label>
+                        <input type="date" id="invDate" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" required>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Cuenta</label>
+                        <select id="invAccount" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100"></select>
+                    </div>
+                    <div class="col-span-2 md:col-span-1 flex items-end gap-2">
+                        <button type="submit" id="submitInvBtn" class="flex-1 text-white font-black py-3 rounded-xl shadow-lg transition active:scale-95" style="background:rgb(var(--accent))">Registrar</button>
+                        <button type="button" id="cancelInvEditBtn" class="hidden px-4 bg-gray-100 text-gray-400 font-bold py-3 rounded-xl hover:bg-gray-200 transition text-sm">✕</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tables Section -->
+            <div class="space-y-6">
+                <!-- Closed Operations -->
+                <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                    <div class="p-6 border-b border-gray-50 bg-indigo-50/20">
+                        <h3 class="text-sm font-black text-gray-700 uppercase tracking-widest">Operaciones Completadas (Cerradas)</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/50">
+                                    <th class="p-4">Concepto / Ticker</th>
+                                    <th class="p-4">Fechas (C | V)</th>
+                                    <th class="p-4">P. Compra</th>
+                                    <th class="p-4">P. Venta</th>
+                                    <th class="p-4">Resultado</th>
+                                    <th class="p-4">ROI (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invClosedTableBody" class="text-sm divide-y divide-gray-50">
+                                <tr><td colspan="6" class="p-10 text-center text-gray-300">No hay operaciones cerradas.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- History -->
+                <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                    <div class="p-6 border-b border-gray-50 flex items-center justify-between">
+                        <h3 class="text-sm font-black text-gray-700 uppercase tracking-widest">Historial de Operaciones</h3>
+                        <div class="flex gap-2">
+                            <input type="text" id="invFilterConcept" placeholder="Buscar..." class="bg-gray-50 border border-gray-100 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-indigo-200">
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/50">
+                                    <th class="p-4">Op ID</th>
+                                    <th class="p-4">Fecha</th>
+                                    <th class="p-4">Tipo</th>
+                                    <th class="p-4">Ticker</th>
+                                    <th class="p-4">Acciones</th>
+                                    <th class="p-4">Cantidad</th>
+                                    <th class="p-4 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invHistoryTableBody" class="text-sm divide-y divide-gray-50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div id="settings" class="tab-content hidden max-w-3xl mx-auto space-y-5">
 
             <!-- API Key -->
@@ -693,6 +826,7 @@
             <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="budgets"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Metas</span></button>
             <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="recurring"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Suscrip</span></button>
             <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="payrolls"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Nóminas</span></button>
+            <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="investments"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Invers.</span></button>
             <button class="tab-button flex flex-col items-center p-2 text-gray-400" data-tab="settings"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg><span class="text-[8px] font-black uppercase mt-0.5">Ajustes</span></button>
         </div>
     </nav>

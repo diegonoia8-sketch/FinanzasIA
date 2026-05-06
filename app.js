@@ -63,6 +63,7 @@ const setupRealtimeListeners = (uid) => {
         updatePayrollStats();
         renderPayrollsChart();
         if (!document.getElementById('transactionHistory').classList.contains('hidden')) applyFiltersAndRender();
+        if (!document.getElementById('investments').classList.contains('hidden')) renderInvestments();
         if (budgetsUnsubscribe) budgetsUnsubscribe();
         budgetsUnsubscribe = setupBudgetsListener(uid, allUserTransactions, (budgets) => {
             allBudgets = budgets;
@@ -179,6 +180,7 @@ const renderSettings = (settings) => {
     populateSelectOptions('csvDestAccount', userAccounts);
     populateSelectOptions('recurringCategory', catsExp);
     populateSelectOptions('recurringAccount', userAccounts);
+    populateSelectOptions('invAccount', userAccounts);
 
     // Datalist suggestions
     const datalist = document.getElementById('descriptionSuggestions');
@@ -461,6 +463,7 @@ document.querySelectorAll('.tab-button').forEach(btn => btn.addEventListener('cl
         verifyPayrollAccess();
     } else {
         showTab(tab);
+        if (tab === 'investments') renderInvestments();
     }
 }));
 
@@ -1392,5 +1395,305 @@ document.getElementById('saveConfPayrollBtn').addEventListener('click', async ()
         btn.disabled = false; btn.textContent = 'Guardar Nómina';
     }
 });
+
+// ─── INVESTMENTS ─────────────────────────────────────────────────────────────
+const renderInvestments = () => {
+    const yearSelect = document.getElementById('invFilterYear');
+    if (yearSelect && yearSelect.options.length === 0) {
+        const allOpt = document.createElement('option');
+        allOpt.value = 'all'; allOpt.textContent = 'Todos los años';
+        yearSelect.appendChild(allOpt);
+        
+        const currentYear = new Date().getFullYear();
+        for (let y = currentYear; y >= currentYear - 5; y--) {
+            const opt = document.createElement('option');
+            opt.value = y; opt.textContent = y;
+            yearSelect.appendChild(opt);
+        }
+        yearSelect.value = currentYear; // Default to current year
+    }
+
+    const yearVal = document.getElementById('invFilterYear').value;
+    const month = document.getElementById('invFilterMonth').value;
+    const filterText = document.getElementById('invFilterConcept').value.toLowerCase();
+
+    let investments = allUserTransactions.filter(t => 
+        t.category && (t.category.toLowerCase() === 'inversión' || t.category.toLowerCase() === 'inversiones')
+    );
+
+    // Apply Year/Month filter
+    investments = investments.filter(t => {
+        const d = t.date?.seconds ? new Date(t.date.seconds * 1000) : null;
+        if (!d) return false;
+        const matchesYear = yearVal === 'all' || d.getFullYear() === parseInt(yearVal);
+        const matchesMonth = month === 'all' || d.getMonth() === parseInt(month);
+        return matchesYear && matchesMonth;
+    });
+
+    const filtered = investments.filter(t => 
+        (t.description || '').toLowerCase().includes(filterText) || 
+        (t.ticker || '').toLowerCase().includes(filterText) ||
+        (t.opId || '').toLowerCase().includes(filterText)
+    ).sort((a,b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
+
+    renderInvestmentHistory(filtered);
+    renderClosedOperations(investments);
+    updateInvestmentSummary(investments);
+};
+
+const renderInvestmentHistory = (txs) => {
+    const tbody = document.getElementById('invHistoryTableBody');
+    if (!tbody) return;
+    
+    if (!txs.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-300 text-sm">Sin operaciones para este filtro</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = txs.map(t => {
+        const dateStr = t.date ? new Date(t.date.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '–';
+        return `
+            <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition">
+                <td class="p-4 text-xs text-gray-500">${dateStr}</td>
+                <td class="p-4">
+                    <span class="text-[9px] font-black uppercase px-2 py-1 rounded-md ${t.type === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
+                        ${t.type === 'income' ? 'Venta' : 'Compra'}
+                    </span>
+                </td>
+                <td class="p-4 font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">
+                    ${t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}€
+                </td>
+                <td class="p-4">
+                    <div class="font-bold text-gray-800">${t.ticker || '–'}</div>
+                    <div class="text-[10px] text-gray-400 font-black uppercase tracking-widest">${t.opId || 'NO-ID'}</div>
+                </td>
+                <td class="p-4 font-medium text-gray-600">${t.shares || '–'}</td>
+                <td class="p-4 text-[10px] text-gray-400 font-bold">${t.account || '–'}</td>
+                <td class="p-4 text-right flex justify-end gap-2">
+                    <button class="edit-inv-btn text-xs font-black text-indigo-400 hover:text-indigo-600 transition" data-id="${t.id}">Editar</button>
+                    <button class="delete-inv-btn text-xs font-black text-gray-300 hover:text-red-500 transition" data-id="${t.id}">✕</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.querySelectorAll('.edit-inv-btn').forEach(btn => btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        const t = allUserTransactions.find(tx => tx.id === id);
+        if (!t) return;
+        
+        document.getElementById('invId').value = t.id;
+        document.getElementById('invOpId').value = t.opId || '';
+        document.getElementById('invTicker').value = t.ticker || '';
+        document.getElementById('invDescription').value = t.description || '';
+        document.getElementById('invShares').value = t.shares || '';
+        document.getElementById('invAmount').value = t.amount || '';
+        document.getElementById('invType').value = t.type || 'expense';
+        document.getElementById('invAccount').value = t.account || '';
+        document.getElementById('invDate').value = t.date?.seconds ? new Date(t.date.seconds * 1000).toISOString().split('T')[0] : '';
+        
+        document.getElementById('investmentForm').querySelector('button[type="submit"]').textContent = 'Actualizar';
+        document.getElementById('cancelInvEditBtn').classList.remove('hidden');
+        document.getElementById('invOpId').focus();
+        updateInvPriceHint();
+    }));
+
+    tbody.querySelectorAll('.delete-inv-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+        if (confirm('¿Eliminar esta operación de inversión?')) {
+            await deleteDoc(doc(db, dbCollections.transactions, e.currentTarget.dataset.id));
+            showDeleteToast();
+        }
+    }));
+};
+
+const renderClosedOperations = (allInv) => {
+    const tbody = document.getElementById('invClosedTableBody');
+    if (!tbody) return;
+
+    // Agrupar por Op ID
+    const groups = {};
+    allInv.forEach(t => {
+        if (!t.opId) return;
+        if (!groups[t.opId]) groups[t.opId] = { buys: [], sells: [], ticker: t.ticker, description: t.description };
+        if (t.type === 'expense') groups[t.opId].buys.push(t);
+        else groups[t.opId].sells.push(t);
+    });
+
+    const closed = Object.entries(groups).filter(([id, g]) => g.buys.length > 0 && g.sells.length > 0);
+    
+    if (closed.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-gray-300">No hay operaciones cerradas.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = closed.map(([opId, g]) => {
+        const totalBuy = g.buys.reduce((s, t) => s + t.amount, 0);
+        const totalSell = g.sells.reduce((s, t) => s + t.amount, 0);
+        const totalSharesBuy = g.buys.reduce((s, t) => s + (t.shares || 0), 0);
+        const totalSharesSell = g.sells.reduce((s, t) => s + (t.shares || 0), 0);
+        
+        const avgBuyPrice = totalBuy / totalSharesBuy;
+        const avgSellPrice = totalSell / totalSharesSell;
+        
+        const result = totalSell - totalBuy;
+        const roi = (result / totalBuy) * 100;
+        
+        const firstBuyDate = new Date(Math.min(...g.buys.map(t => t.date?.seconds * 1000 || 0))).toLocaleDateString();
+        const lastSellDate = new Date(Math.max(...g.sells.map(t => t.date?.seconds * 1000 || 0))).toLocaleDateString();
+
+        return `
+            <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
+                <td class="p-4">
+                    <div class="font-black text-gray-700">${g.description}</div>
+                    <div class="text-[10px] font-bold text-indigo-500 uppercase">${g.ticker} (Op: ${opId})</div>
+                </td>
+                <td class="p-4 text-xs font-medium text-gray-500">
+                    <div>C: ${firstBuyDate}</div>
+                    <div>V: ${lastSellDate}</div>
+                </td>
+                <td class="p-4 text-gray-600 font-medium">${avgBuyPrice.toFixed(3)}€</td>
+                <td class="p-4 text-gray-600 font-medium">${avgSellPrice.toFixed(3)}€</td>
+                <td class="p-4 font-black ${result >= 0 ? 'text-emerald-600' : 'text-red-500'}">
+                    ${result >= 0 ? '+' : ''}${result.toFixed(2)}€
+                </td>
+                <td class="p-4">
+                    <span class="px-2 py-1 rounded-md text-[10px] font-black ${roi >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
+                        ${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%
+                    </span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+const updateInvestmentSummary = (investments) => {
+    // Solo operaciones cerradas para el resultado total
+    const groups = {};
+    investments.forEach(t => {
+        if (!t.opId) return;
+        if (!groups[t.opId]) groups[t.opId] = { buys: [], sells: [] };
+        if (t.type === 'expense') groups[t.opId].buys.push(t);
+        else groups[t.opId].sells.push(t);
+    });
+
+    let totalResult = 0;
+    let totalRoiSum = 0;
+    let closedCount = 0;
+
+    Object.values(groups).forEach(g => {
+        if (g.buys.length > 0 && g.sells.length > 0) {
+            const buy = g.buys.reduce((s, t) => s + t.amount, 0);
+            const sell = g.sells.reduce((s, t) => s + t.amount, 0);
+            const res = sell - buy;
+            totalResult += res;
+            totalRoiSum += (res / buy) * 100;
+            closedCount++;
+        }
+    });
+
+    const resEl = document.getElementById('invTotalResult');
+    if (resEl) {
+        resEl.textContent = `${totalResult.toFixed(2)}€`;
+        resEl.className = `text-2xl font-black ${totalResult >= 0 ? 'text-emerald-600' : 'text-red-500'}`;
+    }
+    
+    const roiEl = document.getElementById('invAvgROI');
+    if (roiEl) roiEl.textContent = closedCount > 0 ? `${(totalRoiSum / closedCount).toFixed(1)}%` : '–';
+    
+    const countEl = document.getElementById('invClosedCount');
+    if (countEl) countEl.textContent = closedCount;
+};
+
+// Form calculations
+const updateInvPriceHint = () => {
+    const shares = parseFloat(document.getElementById('invShares').value);
+    const amount = parseFloat(document.getElementById('invAmount').value);
+    const hint = document.getElementById('invPricePerShare');
+    if (!hint) return;
+    if (shares > 0 && amount > 0) {
+        hint.textContent = `Precio/Acción: ${(amount / shares).toFixed(4)} €`;
+        hint.classList.add('text-indigo-600');
+    } else {
+        hint.textContent = 'Precio/Acción: – €';
+        hint.classList.remove('text-indigo-600');
+    }
+};
+
+document.getElementById('invShares')?.addEventListener('input', updateInvPriceHint);
+document.getElementById('invAmount')?.addEventListener('input', updateInvPriceHint);
+
+// Ticker to Concept Suggestion
+document.getElementById('invTicker')?.addEventListener('blur', (e) => {
+    const ticker = e.target.value.toUpperCase().trim();
+    if (!ticker) return;
+    const existing = allUserTransactions.find(t => t.category === 'Inversión' && t.ticker === ticker);
+    if (existing && !document.getElementById('invDescription').value) {
+        document.getElementById('invDescription').value = existing.description;
+    }
+});
+
+// Investment Form Submit
+document.getElementById('investmentForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const type = document.getElementById('invType').value;
+    const opId = document.getElementById('invOpId').value.trim();
+    
+    // Validación de trazabilidad para ventas
+    if (type === 'income') {
+        const hasBuy = allUserTransactions.some(t => t.category === 'Inversión' && t.opId === opId && t.type === 'expense');
+        if (!hasBuy) {
+            showErrorToast('Error: No hay una operación de compra con este Nº ID');
+            return;
+        }
+    }
+
+    const data = {
+        opId,
+        ticker: document.getElementById('invTicker').value.toUpperCase().trim(),
+        description: document.getElementById('invDescription').value.trim(),
+        shares: parseFloat(document.getElementById('invShares').value),
+        amount: parseFloat(document.getElementById('invAmount').value),
+        type,
+        date: new Date(document.getElementById('invDate').value),
+        category: 'Inversión',
+        account: document.getElementById('invAccount').value,
+        accountingBook: userAccountingBooks[0] || 'Principal',
+        userId,
+        createdAt: serverTimestamp()
+    };
+
+    try {
+        const invId = document.getElementById('invId').value;
+        if (invId) {
+            await updateDoc(doc(db, dbCollections.transactions, invId), data);
+            showSaveToast('Operación actualizada');
+        } else {
+            await addDoc(collection(db, dbCollections.transactions), data);
+            showSaveToast('Operación registrada');
+        }
+        
+        e.target.reset();
+        document.getElementById('invId').value = '';
+        document.getElementById('submitInvBtn').textContent = 'Registrar';
+        document.getElementById('cancelInvEditBtn').classList.add('hidden');
+        updateInvPriceHint();
+        renderInvestments();
+    } catch (err) {
+        showErrorToast('Error al guardar');
+    }
+});
+
+document.getElementById('cancelInvEditBtn')?.addEventListener('click', () => {
+    document.getElementById('investmentForm').reset();
+    document.getElementById('invId').value = '';
+    document.getElementById('submitInvBtn').textContent = 'Registrar';
+    document.getElementById('cancelInvEditBtn').classList.add('hidden');
+    updateInvPriceHint();
+});
+
+document.getElementById('invFilterConcept')?.addEventListener('input', renderInvestments);
+document.getElementById('invFilterYear')?.addEventListener('change', renderInvestments);
+document.getElementById('invFilterMonth')?.addEventListener('change', renderInvestments);
+
 
 
