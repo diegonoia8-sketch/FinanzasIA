@@ -51,7 +51,7 @@ document.getElementById('signInBtn').addEventListener('click', async () => {
     }
 });
 document.getElementById('signOutBtn').addEventListener('click', () => signOut(auth));
-getRedirectResult(auth).catch(() => {});
+getRedirectResult(auth).catch(() => { });
 
 // ─── FIRESTORE LISTENERS ──────────────────────────────────────────────────────
 const setupRealtimeListeners = (uid) => {
@@ -78,8 +78,8 @@ const setupRealtimeListeners = (uid) => {
             renderSettings(snap.data());
         } else {
             setDoc(snap.ref, {
-                categories: ["Salario","Inversiones","Regalo","Otros Ingresos","Alquiler","Comida","Transporte","Combustible","Ocio","Facturas","Salud","Educación","Ropa","Otros Gastos","Transferencia","Saldo Inicial","No Contabilizados","EXLABESA"],
-                accounts: ["Efectivo","Cuenta Bancaria","Tarjeta de Crédito"],
+                categories: ["Salario", "Inversiones", "Regalo", "Otros Ingresos", "Alquiler", "Comida", "Transporte", "Combustible", "Ocio", "Facturas", "Salud", "Educación", "Ropa", "Otros Gastos", "Transferencia", "Saldo Inicial", "No Contabilizados", "EXLABESA"],
+                accounts: ["Efectivo", "Cuenta Bancaria", "Tarjeta de Crédito"],
                 accountingBooks: ["Principal"]
             });
         }
@@ -91,10 +91,10 @@ const setupRealtimeListeners = (uid) => {
         allRecurringItems = items;
         renderRecurringList(items);
         renderUpcomingPayments(items);
-        populateSelectOptions('recurringCategory', userCategories.filter(c => !['Transferencia','Saldo Inicial'].includes(c)));
+        populateSelectOptions('recurringCategory', userCategories.filter(c => !['Transferencia', 'Saldo Inicial'].includes(c)));
         populateSelectOptions('recurringAccount', userAccounts);
         // Listeners para activar/desactivar, editar y eliminar
-        document.querySelectorAll('.toggle-active-recurring').forEach(toggle => 
+        document.querySelectorAll('.toggle-active-recurring').forEach(toggle =>
             toggle.addEventListener('change', async (e) => {
                 const id = e.currentTarget.dataset.id;
                 const active = e.currentTarget.checked;
@@ -167,7 +167,7 @@ const renderSettings = (settings) => {
     renderChips('accountList', userAccounts, 'accounts');
     renderChips('accountingBookList', userAccountingBooks, 'accountingBooks');
 
-    const catsExp = userCategories.filter(c => !['Transferencia','Saldo Inicial'].includes(c));
+    const catsExp = userCategories.filter(c => !['Transferencia', 'Saldo Inicial'].includes(c));
     populateSelectOptions('category', catsExp);
     populateSelectOptions('budgetCategory', catsExp);
     populateSelectOptions('account', userAccounts);
@@ -216,7 +216,7 @@ const renderDashboard = () => {
 };
 
 const updateDashboardFuelMetrics = (txs) => {
-    const fuelTxs = txs.filter(t => t.category === 'Combustible' && !t.description.toLowerCase().includes('peaje')).sort((a,b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
+    const fuelTxs = txs.filter(t => t.category === 'Combustible' && !t.description.toLowerCase().includes('peaje')).sort((a, b) => (a.date?.seconds || 0) - (b.date?.seconds || 0));
     if (fuelTxs.length < 2) return;
 
     const kmRegex = /(\d{1,3}(?:\.?\d{3})*|\d+)\s*km/i;
@@ -235,15 +235,15 @@ const updateDashboardFuelMetrics = (txs) => {
     // 1. Media Histórica
     let totalLiters = 0, totalKm = 0, totalCost = 0;
     const processed = fuelTxs.map(t => ({ ...t, ...parseData(t) }));
-    
+
     // Para la media, necesitamos la diferencia entre el primer y el último registro con KM
     const withKm = processed.filter(p => p.km !== null);
     if (withKm.length < 2) return;
-    
+
     const firstWithKm = withKm[0];
     const lastWithKm = withKm[withKm.length - 1];
     totalKm = lastWithKm.km - firstWithKm.km;
-    
+
     // Sumar litros de todos excepto el más antiguo (ya que pertenece al consumo previo)
     const recordsForSum = processed.filter(p => p.date?.seconds > firstWithKm.date?.seconds && p.date?.seconds <= lastWithKm.date?.seconds);
     totalLiters = recordsForSum.reduce((s, r) => s + (r.liters || 0), 0);
@@ -253,16 +253,16 @@ const updateDashboardFuelMetrics = (txs) => {
         const avgL100 = (totalLiters / totalKm) * 100;
         const avgE100 = (totalCost / totalKm) * 100;
         const avgPricePerLiter = totalCost / totalLiters;
-        
+
         document.getElementById('dashFuelLitersHist').textContent = `${avgL100.toFixed(1)} L`;
         document.getElementById('dashFuelEurosHist').textContent = `${avgE100.toFixed(2)} €`;
         document.getElementById('dashFuelPriceHist').textContent = `${avgPricePerLiter.toFixed(3)} €`;
-        
+
         // 2. Último Repostaje (comparativa directa)
         const reversed = [...processed].reverse();
         const latest = reversed.find(r => r.km !== null && r.liters !== null);
         const previous = reversed.find(r => r.km !== null && r.date?.seconds < latest.date?.seconds);
-        
+
         if (latest && previous) {
             const lKm = latest.km - previous.km;
             const lAvg = (latest.liters / lKm) * 100;
@@ -270,9 +270,9 @@ const updateDashboardFuelMetrics = (txs) => {
             const latestPricePerLiter = latest.amount / latest.liters;
             const diffL = ((lAvg - avgL100) / avgL100) * 100;
             const diffE = ((eAvg - avgE100) / avgE100) * 100;
-            
+
             const renderDiff = (diff) => `<span class="text-[10px] ml-1 ${diff > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diff > 0 ? '+' : ''}${diff.toFixed(1)}%)</span>`;
-            
+
             document.getElementById('dashFuelLitersLatest').innerHTML = `${lAvg.toFixed(1)} L ${renderDiff(diffL)}`;
             document.getElementById('dashFuelEurosLatest').innerHTML = `${eAvg.toFixed(2)} € ${renderDiff(diffE)}`;
             document.getElementById('dashFuelPriceLatest').textContent = `${latestPricePerLiter.toFixed(3)} €`;
@@ -366,9 +366,9 @@ const renderTransactionsTable = (txs) => {
         return `<tr class="${rowClass} border-b border-gray-50 hover:bg-gray-50/50 transition">
             <td class="px-4 py-3 text-xs text-gray-500">${dateStr}</td>
             <td class="px-4 py-3 text-sm font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">${t.type === 'income' ? '+' : '-'}${t.amount?.toFixed(2)}€</td>
-            <td class="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs truncate">${t.description || '–'} ${t.receiptImage ? '<span title="Tiene ticket">📎</span>' : ''} ${(t.tags||[]).map(tag => `<span class="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 rounded-full font-bold">${tag}</span>`).join('')}</td>
-            <td class="px-4 py-3 hidden md:table-cell"><span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">${t.category||'–'}</span></td>
-            <td class="px-4 py-3 hidden md:table-cell text-xs text-gray-400">${t.account||'–'}</td>
+            <td class="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs truncate">${t.description || '–'} ${t.receiptImage ? '<span title="Tiene ticket">📎</span>' : ''} ${(t.tags || []).map(tag => `<span class="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 rounded-full font-bold">${tag}</span>`).join('')}</td>
+            <td class="px-4 py-3 hidden md:table-cell"><span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">${t.category || '–'}</span></td>
+            <td class="px-4 py-3 hidden md:table-cell text-xs text-gray-400">${t.account || '–'}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button class="edit-btn text-xs font-black text-indigo-400 hover:text-indigo-600 mr-2 transition" data-id="${t.id}">Editar</button>
                 <button class="delete-btn text-xs font-black text-gray-300 hover:text-red-500 transition" data-id="${t.id}">✕</button>
@@ -405,23 +405,23 @@ const applyFiltersAndRender = () => {
     const cat = document.getElementById('filterCategory').value;
     const acc = document.getElementById('filterAccount').value;
     const concept = document.getElementById('filterConcept')?.value?.toLowerCase();
-    
+
     let filtered = [...allUserTransactions];
-    if (s) { const sd = new Date(s); sd.setHours(0,0,0,0); filtered = filtered.filter(t => t.date?.toDate?.() >= sd); }
-    if (e) { const ed = new Date(e); ed.setHours(23,59,59,999); filtered = filtered.filter(t => t.date?.toDate?.() <= ed); }
+    if (s) { const sd = new Date(s); sd.setHours(0, 0, 0, 0); filtered = filtered.filter(t => t.date?.toDate?.() >= sd); }
+    if (e) { const ed = new Date(e); ed.setHours(23, 59, 59, 999); filtered = filtered.filter(t => t.date?.toDate?.() <= ed); }
     if (cat) filtered = filtered.filter(t => t.category === cat);
     if (acc) filtered = filtered.filter(t => t.account === acc);
     if (concept) {
-        filtered = filtered.filter(t => 
-            (t.description || '').toLowerCase().includes(concept) || 
+        filtered = filtered.filter(t =>
+            (t.description || '').toLowerCase().includes(concept) ||
             (t.notes || '').toLowerCase().includes(concept) ||
             (t.tags || []).some(tag => tag.toLowerCase().includes(concept))
         );
     }
-    
+
     filtered.sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
     renderTransactionsTable(filtered);
-    
+
     const chartType = document.getElementById('historyCategoryType')?.value || 'expense';
     renderHistoryCategoryChart(filtered, chartType);
 };
@@ -434,7 +434,7 @@ const resetTransactionForm = () => {
     const rpc = document.getElementById('receiptPreviewContainer'); if (rpc) rpc.classList.add('hidden');
     const rp = document.getElementById('receiptPreview'); if (rp) rp.src = '';
 };
-const showTransactionMenu = () => { ['transactionMain','transactionHistory','transactionContent'].forEach(id => document.getElementById(id).classList.add('hidden')); document.getElementById('transactionMenu').classList.remove('hidden'); };
+const showTransactionMenu = () => { ['transactionMain', 'transactionHistory', 'transactionContent'].forEach(id => document.getElementById(id).classList.add('hidden')); document.getElementById('transactionMenu').classList.remove('hidden'); };
 const showTransactionForm = () => { document.getElementById('transactionMenu').classList.add('hidden'); document.getElementById('transactionContent').classList.remove('hidden'); document.getElementById('incomeExpenseForm').classList.add('hidden'); document.getElementById('transferForm').classList.add('hidden'); };
 
 // ─── AUTH STATE ───────────────────────────────────────────────────────────────
@@ -445,9 +445,9 @@ onAuthStateChanged(auth, (user) => {
         setupRealtimeListeners(userId);
         // Set current month range
         const t = new Date(), y = t.getFullYear(), m = t.getMonth();
-        const first = new Date(y, m, 1), last = new Date(y, m+1, 0);
-        first.setMinutes(first.getMinutes()-first.getTimezoneOffset());
-        last.setMinutes(last.getMinutes()-last.getTimezoneOffset());
+        const first = new Date(y, m, 1), last = new Date(y, m + 1, 0);
+        first.setMinutes(first.getMinutes() - first.getTimezoneOffset());
+        last.setMinutes(last.getMinutes() - last.getTimezoneOffset());
         document.getElementById('categoryAnalysisStartDate').value = first.toISOString().split('T')[0];
         document.getElementById('categoryAnalysisEndDate').value = last.toISOString().split('T')[0];
     } else {
@@ -481,7 +481,7 @@ document.getElementById('addIncomeBtn').addEventListener('click', () => {
     document.getElementById('formTitle').textContent = 'Registrar Ingreso';
     document.getElementById('submitBtn').textContent = 'Guardar Ingreso';
     document.getElementById('type').value = 'income';
-    const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+    const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     document.getElementById('date').value = d.toISOString().split('T')[0];
 });
 document.getElementById('addExpenseBtn').addEventListener('click', () => {
@@ -490,7 +490,7 @@ document.getElementById('addExpenseBtn').addEventListener('click', () => {
     document.getElementById('formTitle').textContent = 'Registrar Gasto';
     document.getElementById('submitBtn').textContent = 'Guardar Gasto';
     document.getElementById('type').value = 'expense';
-    const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+    const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     document.getElementById('date').value = d.toISOString().split('T')[0];
 });
 document.getElementById('addTransferBtn').addEventListener('click', () => { showTransactionForm(); document.getElementById('transferForm').classList.remove('hidden'); });
@@ -529,10 +529,10 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
         };
         const txId = document.getElementById('transactionId').value;
         const category = document.getElementById('category').value;
-        
+
         // Only save image if category is EXLABESA
         const imageToSave = category === 'EXLABESA' ? currentScannedImage : null;
-        
+
         await saveTransaction(userId, txId, data, imageToSave);
         resetTransactionForm(); currentScannedImage = null;
         document.getElementById('transactionContent').classList.add('hidden');
@@ -605,11 +605,11 @@ document.getElementById('toggleCompactBtn').addEventListener('click', (e) => {
 });
 
 document.getElementById('exportExcelBtn').addEventListener('click', () => {
-    const headers = ['Fecha','Tipo','Descripción','Importe','Categoría','Cuenta','Notas','Tags'];
+    const headers = ['Fecha', 'Tipo', 'Descripción', 'Importe', 'Categoría', 'Cuenta', 'Notas', 'Tags'];
     let csv = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
     allUserTransactions.forEach(t => {
         const d = t.date ? new Date(t.date.seconds * 1000).toLocaleDateString('es-ES') : 'N/A';
-        csv += [d, t.type === 'income' ? 'Ingreso' : 'Gasto', `"${(t.description||'').replace(/"/g,'""')}"`, t.amount?.toFixed(2), t.category||'', t.account||'', `"${(t.notes||'').replace(/"/g,'""')}"`, (t.tags||[]).join('; ')].join(',') + '\n';
+        csv += [d, t.type === 'income' ? 'Ingreso' : 'Gasto', `"${(t.description || '').replace(/"/g, '""')}"`, t.amount?.toFixed(2), t.category || '', t.account || '', `"${(t.notes || '').replace(/"/g, '""')}"`, (t.tags || []).join('; ')].join(',') + '\n';
     });
     const link = document.createElement('a'); link.href = encodeURI(csv); link.download = 'transacciones.csv'; document.body.appendChild(link); link.click(); link.remove();
 });
@@ -618,7 +618,7 @@ document.getElementById('exportExcelBtn').addEventListener('click', () => {
 document.getElementById('calculatePastBalanceBtn').addEventListener('click', () => {
     const dateInput = document.getElementById('pastBalanceDate').value;
     if (!dateInput) return showErrorToast('Selecciona una fecha');
-    const target = new Date(dateInput); target.setHours(23,59,59,999);
+    const target = new Date(dateInput); target.setHours(23, 59, 59, 999);
     const accounts = {};
     allUserTransactions.filter(t => t.date?.toDate?.() <= target && t.category !== '').forEach(t => {
         if (!accounts[t.account]) accounts[t.account] = 0;
@@ -656,11 +656,11 @@ if (toggleSwitch) {
 document.getElementById('scanReceiptBtn').addEventListener('click', () => document.getElementById('receiptInput').click());
 document.getElementById('receiptInput').addEventListener('change', async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    
+
     const scanBtnText = document.getElementById('scanReceiptText');
     const originalText = scanBtnText.textContent;
     scanBtnText.textContent = 'Comprimiendo...';
-    
+
     const reader = new FileReader();
     reader.onload = async (rx) => {
         try {
@@ -669,25 +669,25 @@ document.getElementById('receiptInput').addEventListener('change', async (e) => 
             currentScannedImage = compressed;
             document.getElementById('receiptPreview').src = compressed;
             document.getElementById('receiptPreviewContainer').classList.remove('hidden');
-            
+
             scanBtnText.textContent = 'Analizando ticket...';
-            
+
             const systemPrompt = "Eres un OCR financiero preciso. Extrae los datos del ticket en formato JSON.";
             const userPrompt = `Extrae: {"amount": number, "category": string, "date": "YYYY-MM-DD", "description": string}. Solo el JSON sin markdown.`;
-            
+
             const result = await callGemini(systemPrompt, userPrompt, compressed);
             const cleanResult = result.replace(/```json|```/g, '').trim();
             const json = JSON.parse(cleanResult);
-            
+
             if (json.amount) document.getElementById('amount').value = json.amount;
             if (json.description) document.getElementById('description').value = json.description;
             if (json.date) document.getElementById('date').value = json.date;
             if (json.category && userCategories.includes(json.category)) {
                 document.getElementById('category').value = json.category;
             }
-            
+
             showInfoToast('Ticket analizado correctamente');
-        } catch (err) { 
+        } catch (err) {
             console.error("OCR Error:", err);
             showErrorToast('Error al analizar ticket');
         } finally {
@@ -729,7 +729,7 @@ const processCsv = async (file) => {
         document.getElementById('csvCount').textContent = `${total} transacciones encontradas`;
         document.getElementById('csvPreviewTable').innerHTML = transactions.slice(0, 5).map(t =>
             `<div class="text-xs py-1 border-b border-gray-100 flex justify-between"><span class="truncate text-gray-700 max-w-[180px]">${t.description}</span><span class="${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'} font-bold">${t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}€</span></div>`
-        ).join('') + (total > 5 ? `<p class="text-[10px] text-gray-400 mt-1">...y ${total-5} más</p>` : '');
+        ).join('') + (total > 5 ? `<p class="text-[10px] text-gray-400 mt-1">...y ${total - 5} más</p>` : '');
         document.getElementById('csvPreview').classList.remove('hidden');
         document.getElementById('importCsvBtn').classList.remove('hidden');
         document.getElementById('importCsvBtn').style.display = '';
@@ -807,7 +807,7 @@ if (SpeechRecognition) {
                 if (json.amount) document.getElementById('amount').value = json.amount;
                 if (json.description) document.getElementById('description').value = json.description;
                 if (json.category && userCategories.includes(json.category)) document.getElementById('category').value = json.category;
-                const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset());
+                const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
                 document.getElementById('date').value = d.toISOString().split('T')[0];
             }, 100);
         } catch (err) { showErrorToast('No entendí la frase'); }
@@ -993,7 +993,7 @@ document.getElementById('forgotPayrollPassBtn')?.addEventListener('click', async
                 // Clear password in Firestore
                 await updateDoc(doc(db, dbCollections.userSettings, userId), { payrollsPassword: null });
                 payrollsPassword = null;
-                
+
                 // Unlock tab
                 document.getElementById('payrollPasswordModal').classList.add('hidden');
                 payrollTabUnlocked = true;
@@ -1001,7 +1001,7 @@ document.getElementById('forgotPayrollPassBtn')?.addEventListener('click', async
                 renderPayrollsTable();
                 updatePayrollStats();
                 renderPayrollsChart();
-                
+
                 showInfoToast("Identidad verificada. Se ha eliminado la contraseña.");
             } else {
                 showErrorToast("La cuenta de Google no coincide.");
@@ -1060,21 +1060,21 @@ const guessPayrollMonth = (dateStr, description) => {
         "noviembre": 10, "nov": 10,
         "diciembre": 11, "dic": 11
     };
-    
+
     let foundMonth = -1;
-    for(const [key, val] of Object.entries(monthsMap)) {
+    for (const [key, val] of Object.entries(monthsMap)) {
         const regex = new RegExp(`\\b${key}\\b`, 'i');
         if (regex.test(desc)) {
             foundMonth = val;
             break;
         }
     }
-    
+
     let yearMatch = desc.match(/20\d{2}/) || desc.match(/\b\d{2}\b/);
     let foundYear = null;
     if (yearMatch) {
-       foundYear = parseInt(yearMatch[0]);
-       if (foundYear < 100) foundYear += 2000;
+        foundYear = parseInt(yearMatch[0]);
+        if (foundYear < 100) foundYear += 2000;
     }
 
     const txDate = new Date(dateStr);
@@ -1108,17 +1108,17 @@ const getUnifiedPayrolls = () => {
         // Normalizar categoría para ignorar acentos y mayúsculas
         const catNormalized = (t.category || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
         const descNormalized = (t.description || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-        
+
         // El tipo interno es 'income', no 'Ingreso'
         const isNomina = (catNormalized === 'nomina' || descNormalized.includes('nomina')) && t.type === 'income';
         if (!isNomina) return;
 
         const date = t.date?.toDate ? t.date.toDate() : new Date(t.date);
         const guessedDate = guessPayrollMonth(date, t.description);
-        
+
         // Usamos el ID de la transacción como clave principal para asegurar el vínculo
         const key = t.id;
-        
+
         if (!unified[key]) {
             unified[key] = {
                 year: guessedDate.year,
@@ -1142,15 +1142,15 @@ const getUnifiedPayrolls = () => {
         }
     });
 
-    return Object.values(unified).sort((a,b) => b.year - a.year || b.month - a.month);
+    return Object.values(unified).sort((a, b) => b.year - a.year || b.month - a.month);
 };
 
 const populatePayrollYearFilter = (entries) => {
     const select = document.getElementById('payrollYearFilter');
     if (!select) return;
     const current = select.value;
-    const years = [...new Set(entries.map(e => e.year))].sort((a,b) => b - a);
-    select.innerHTML = '<option value="all">Todos los años</option>' + 
+    const years = [...new Set(entries.map(e => e.year))].sort((a, b) => b - a);
+    select.innerHTML = '<option value="all">Todos los años</option>' +
         years.map(y => `<option value="${y}">${y}</option>`).join('');
     select.value = current;
 };
@@ -1158,23 +1158,23 @@ const populatePayrollYearFilter = (entries) => {
 const renderPayrollsChart = () => {
     const ctx = document.getElementById('payrollChart')?.getContext('2d');
     if (!ctx || !payrollTabUnlocked) return;
-    
+
     const year = document.getElementById('payrollYearFilter').value;
     const metric = document.getElementById('payrollChartMetric').value;
-    
-    let entries = getUnifiedPayrolls().sort((a,b) => a.year - b.year || a.month - b.month);
+
+    let entries = getUnifiedPayrolls().sort((a, b) => a.year - b.year || a.month - b.month);
     if (year !== 'all') entries = entries.filter(e => e.year == year);
-    
+
     if (payrollChartInstance) payrollChartInstance.destroy();
-    
+
     const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-    const labels = entries.map(e => `${monthNames[e.month-1]} ${e.year.toString().slice(-2)}`);
+    const labels = entries.map(e => `${monthNames[e.month - 1]} ${e.year.toString().slice(-2)}`);
     const data = entries.map(e => {
         if (metric === 'dietasLoc') return (e.dietas || 0) + (e.locomocion || 0);
         if (metric === 'txAmount') return e.txAmount || 0;
         return e[metric] || 0;
     });
-    
+
     payrollChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
@@ -1204,13 +1204,13 @@ const renderPayrollsChart = () => {
 const renderPayrollsTable = () => {
     const tbody = document.getElementById('payrollsTableBody');
     if (!tbody || !payrollTabUnlocked) return;
-    
+
     const rawEntries = getUnifiedPayrolls();
     populatePayrollYearFilter(rawEntries);
-    
+
     const year = document.getElementById('payrollYearFilter').value;
     const entries = year === 'all' ? rawEntries : rawEntries.filter(e => e.year == year);
-    
+
     if (!entries.length) {
         tbody.innerHTML = `<tr><td colspan="9" class="p-10 text-center text-gray-300">No hay datos para este periodo.</td></tr>`;
         document.getElementById('payrollsTableFoot').classList.add('hidden');
@@ -1224,7 +1224,7 @@ const renderPayrollsTable = () => {
         const label = `${monthNames[p.month - 1]} ${p.year}`;
         const hasPDF = !!(p.pdfUrl || p.pdfBase64);
         const downloadUrl = p.pdfBase64 || p.pdfUrl;
-        
+
         totals.tx += p.txAmount || 0;
         totals.bruto += p.bruto || 0;
         totals.neto += p.neto || 0;
@@ -1239,20 +1239,20 @@ const renderPayrollsTable = () => {
                     <div class="text-[9px] text-gray-400 font-bold uppercase">${p.hasTx ? 'Detectado' : 'Manual'}</div>
                 </td>
                 <td class="p-4 font-black text-indigo-600">
-                    ${p.txAmount ? p.txAmount.toFixed(2)+'€' : '–'}
+                    ${p.txAmount ? p.txAmount.toFixed(2) + '€' : '–'}
                 </td>
-                <td class="p-4 font-bold text-gray-400">${p.bruto ? p.bruto.toFixed(2)+'€' : '–'}</td>
-                <td class="p-4 font-black text-emerald-600">${p.neto ? p.neto.toFixed(2)+'€' : '–'}</td>
+                <td class="p-4 font-bold text-gray-400">${p.bruto ? p.bruto.toFixed(2) + '€' : '–'}</td>
+                <td class="p-4 font-black text-emerald-600">${p.neto ? p.neto.toFixed(2) + '€' : '–'}</td>
                 <td class="p-4 font-bold text-gray-600">
-                    ${p.irpf ? p.irpf.toFixed(2)+'€' : '–'}
+                    ${p.irpf ? p.irpf.toFixed(2) + '€' : '–'}
                 </td>
-                <td class="p-4 text-gray-400">${p.ss ? p.ss.toFixed(2)+'€' : '–'}</td>
-                <td class="p-4 text-gray-400">${p.hasPayroll ? ((p.dietas||0) + (p.locomocion||0)).toFixed(2)+'€' : '–'}</td>
+                <td class="p-4 text-gray-400">${p.ss ? p.ss.toFixed(2) + '€' : '–'}</td>
+                <td class="p-4 text-gray-400">${p.hasPayroll ? ((p.dietas || 0) + (p.locomocion || 0)).toFixed(2) + '€' : '–'}</td>
                 <td class="p-4 text-center">
                     <div class="flex items-center justify-center gap-2">
                         ${hasPDF ? `<a href="${downloadUrl}" download="Nomina_${p.year}_${p.month}.pdf" target="_blank" class="payroll-download-btn" title="Descargar PDF">📥</a>` : ''}
                         <button class="upload-to-row-btn text-[10px] bg-indigo-50 text-indigo-600 font-black py-1 px-3 rounded-lg hover:bg-indigo-100 transition" 
-                                data-month="${p.year}-${String(p.month).padStart(2,'0')}"
+                                data-month="${p.year}-${String(p.month).padStart(2, '0')}"
                                 data-txid="${p.txId || ''}">
                             ${hasPDF ? '🔄 Reemplazar' : '📄 Subir PDF'}
                         </button>
@@ -1300,7 +1300,7 @@ const updatePayrollStats = () => {
     const year = document.getElementById('payrollYearFilter').value;
     const rawEntries = getUnifiedPayrolls().filter(p => p.hasPayroll);
     const entries = year === 'all' ? rawEntries : rawEntries.filter(e => e.year == year);
-    
+
     if (!entries.length) {
         document.getElementById('payrollStatsBruto').textContent = '–';
         document.getElementById('payrollStatsNeto').textContent = '–';
@@ -1309,9 +1309,9 @@ const updatePayrollStats = () => {
     }
     const latest = entries[0];
     document.getElementById('payrollStatsBruto').textContent = `${(latest.bruto * 12).toLocaleString('es-ES')}€`;
-    const avgNeto = entries.reduce((s,p) => s + p.neto, 0) / entries.length;
+    const avgNeto = entries.reduce((s, p) => s + p.neto, 0) / entries.length;
     document.getElementById('payrollStatsNeto').textContent = `${avgNeto.toFixed(2)}€`;
-    const avgIRPFPercent = entries.reduce((s,p) => s + (p.irpf / p.bruto * 100), 0) / entries.length;
+    const avgIRPFPercent = entries.reduce((s, p) => s + (p.irpf / p.bruto * 100), 0) / entries.length;
     document.getElementById('payrollStatsIRPF').textContent = `${avgIRPFPercent.toFixed(1)}%`;
 };
 
@@ -1341,7 +1341,7 @@ document.getElementById('payrollFileInput').addEventListener('change', async (e)
             currentPayrollPDF = base64;
             const data = await analizarNomina(base64);
             currentPayrollData = data;
-            const dateStr = targetMonth || (data.fecha ? data.fecha.substring(0,7) : new Date().toISOString().substring(0,7));
+            const dateStr = targetMonth || (data.fecha ? data.fecha.substring(0, 7) : new Date().toISOString().substring(0, 7));
             document.getElementById('confPayrollMonth').value = dateStr;
             document.getElementById('confPayrollBruto').value = data.bruto;
             document.getElementById('confPayrollNeto').value = data.neto;
@@ -1400,11 +1400,11 @@ document.getElementById('saveConfPayrollBtn').addEventListener('click', async ()
 const initInvFilters = () => {
     const yearSelect = document.getElementById('invFilterYear');
     if (!yearSelect || yearSelect.options.length > 0) return;
-    
+
     const allOpt = document.createElement('option');
     allOpt.value = 'all'; allOpt.textContent = 'Todos los años';
     yearSelect.appendChild(allOpt);
-    
+
     const currentYear = new Date().getFullYear();
     for (let y = currentYear; y >= currentYear - 5; y--) {
         const opt = document.createElement('option');
@@ -1421,8 +1421,8 @@ const renderInvestments = () => {
     const month = document.getElementById('invFilterMonth').value;
     const filterText = document.getElementById('invFilterConcept').value.toLowerCase();
 
-    let investments = allUserTransactions.filter(t => 
-        t.category && (t.category.toLowerCase() === 'inversión' || t.category.toLowerCase() === 'inversiones')
+    let investments = allUserTransactions.filter(t =>
+        t.category && t.category === 'Inversiones'
     );
 
     // Apply Year/Month filter
@@ -1430,17 +1430,17 @@ const renderInvestments = () => {
         const d = t.date?.seconds ? new Date(t.date.seconds * 1000) : (t.date instanceof Date ? t.date : null);
         if (!d && yearVal === 'all' && month === 'all') return true; // Show dateless if no date filters
         if (!d) return false;
-        
+
         const matchesYear = yearVal === 'all' || d.getFullYear() === parseInt(yearVal);
         const matchesMonth = month === 'all' || d.getMonth() === parseInt(month);
         return matchesYear && matchesMonth;
     });
 
-    const filtered = investments.filter(t => 
-        (t.description || '').toLowerCase().includes(filterText) || 
+    const filtered = investments.filter(t =>
+        (t.description || '').toLowerCase().includes(filterText) ||
         (t.ticker || '').toLowerCase().includes(filterText) ||
         (t.opId || '').toLowerCase().includes(filterText)
-    ).sort((a,b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
+    ).sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
 
     renderInvestmentHistory(filtered);
     renderClosedOperations(investments);
@@ -1450,7 +1450,7 @@ const renderInvestments = () => {
 const renderInvestmentHistory = (txs) => {
     const tbody = document.getElementById('invHistoryTableBody');
     if (!tbody) return;
-    
+
     if (!txs.length) {
         tbody.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-300 text-sm">Sin operaciones para este filtro</td></tr>';
         return;
@@ -1487,7 +1487,7 @@ const renderInvestmentHistory = (txs) => {
         const id = e.currentTarget.dataset.id;
         const t = allUserTransactions.find(tx => tx.id === id);
         if (!t) return;
-        
+
         document.getElementById('invId').value = t.id;
         document.getElementById('invOpId').value = t.opId || '';
         document.getElementById('invTicker').value = t.ticker || '';
@@ -1497,7 +1497,7 @@ const renderInvestmentHistory = (txs) => {
         document.getElementById('invType').value = t.type || 'expense';
         document.getElementById('invAccount').value = t.account || '';
         document.getElementById('invDate').value = t.date?.seconds ? new Date(t.date.seconds * 1000).toISOString().split('T')[0] : '';
-        
+
         document.getElementById('investmentForm').querySelector('button[type="submit"]').textContent = 'Actualizar';
         document.getElementById('cancelInvEditBtn').classList.remove('hidden');
         document.getElementById('invOpId').focus();
@@ -1526,7 +1526,7 @@ const renderClosedOperations = (allInv) => {
     });
 
     const closed = Object.entries(groups).filter(([id, g]) => g.buys.length > 0 && g.sells.length > 0);
-    
+
     if (closed.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-gray-300">No hay operaciones cerradas.</td></tr>';
         return;
@@ -1537,13 +1537,13 @@ const renderClosedOperations = (allInv) => {
         const totalSell = g.sells.reduce((s, t) => s + t.amount, 0);
         const totalSharesBuy = g.buys.reduce((s, t) => s + (t.shares || 0), 0);
         const totalSharesSell = g.sells.reduce((s, t) => s + (t.shares || 0), 0);
-        
+
         const avgBuyPrice = totalBuy / totalSharesBuy;
         const avgSellPrice = totalSell / totalSharesSell;
-        
+
         const result = totalSell - totalBuy;
         const roi = (result / totalBuy) * 100;
-        
+
         const firstBuyDate = new Date(Math.min(...g.buys.map(t => t.date?.seconds * 1000 || 0))).toLocaleDateString();
         const lastSellDate = new Date(Math.max(...g.sells.map(t => t.date?.seconds * 1000 || 0))).toLocaleDateString();
 
@@ -1602,10 +1602,10 @@ const updateInvestmentSummary = (investments) => {
         resEl.textContent = `${totalResult.toFixed(2)}€`;
         resEl.className = `text-2xl font-black ${totalResult >= 0 ? 'text-emerald-600' : 'text-red-500'}`;
     }
-    
+
     const roiEl = document.getElementById('invAvgROI');
     if (roiEl) roiEl.textContent = closedCount > 0 ? `${(totalRoiSum / closedCount).toFixed(1)}%` : '–';
-    
+
     const countEl = document.getElementById('invClosedCount');
     if (countEl) countEl.textContent = closedCount;
 };
@@ -1643,7 +1643,7 @@ document.getElementById('investmentForm')?.addEventListener('submit', async (e) 
     e.preventDefault();
     const type = document.getElementById('invType').value;
     const opId = document.getElementById('invOpId').value.trim();
-    
+
     // Validación de trazabilidad para ventas
     if (type === 'income') {
         const hasBuy = allUserTransactions.some(t => t.category === 'Inversión' && t.opId === opId && t.type === 'expense');
@@ -1661,7 +1661,7 @@ document.getElementById('investmentForm')?.addEventListener('submit', async (e) 
         amount: parseFloat(document.getElementById('invAmount').value),
         type,
         date: new Date(document.getElementById('invDate').value),
-        category: 'Inversión',
+        category: 'Inversiones',
         account: document.getElementById('invAccount').value,
         accountingBook: userAccountingBooks[0] || 'Principal',
         userId,
@@ -1677,7 +1677,7 @@ document.getElementById('investmentForm')?.addEventListener('submit', async (e) 
             await addDoc(collection(db, dbCollections.transactions), data);
             showSaveToast('Operación registrada');
         }
-        
+
         e.target.reset();
         document.getElementById('invId').value = '';
         document.getElementById('submitInvBtn').textContent = 'Registrar';
