@@ -1397,21 +1397,25 @@ document.getElementById('saveConfPayrollBtn').addEventListener('click', async ()
 });
 
 // ─── INVESTMENTS ─────────────────────────────────────────────────────────────
-const renderInvestments = () => {
+const initInvFilters = () => {
     const yearSelect = document.getElementById('invFilterYear');
-    if (yearSelect && yearSelect.options.length === 0) {
-        const allOpt = document.createElement('option');
-        allOpt.value = 'all'; allOpt.textContent = 'Todos los años';
-        yearSelect.appendChild(allOpt);
-        
-        const currentYear = new Date().getFullYear();
-        for (let y = currentYear; y >= currentYear - 5; y--) {
-            const opt = document.createElement('option');
-            opt.value = y; opt.textContent = y;
-            yearSelect.appendChild(opt);
-        }
-        yearSelect.value = currentYear; // Default to current year
+    if (!yearSelect || yearSelect.options.length > 0) return;
+    
+    const allOpt = document.createElement('option');
+    allOpt.value = 'all'; allOpt.textContent = 'Todos los años';
+    yearSelect.appendChild(allOpt);
+    
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y >= currentYear - 5; y--) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        yearSelect.appendChild(opt);
     }
+    yearSelect.value = 'all'; // Default to show everything
+};
+
+const renderInvestments = () => {
+    initInvFilters();
 
     const yearVal = document.getElementById('invFilterYear').value;
     const month = document.getElementById('invFilterMonth').value;
@@ -1423,8 +1427,10 @@ const renderInvestments = () => {
 
     // Apply Year/Month filter
     investments = investments.filter(t => {
-        const d = t.date?.seconds ? new Date(t.date.seconds * 1000) : null;
+        const d = t.date?.seconds ? new Date(t.date.seconds * 1000) : (t.date instanceof Date ? t.date : null);
+        if (!d && yearVal === 'all' && month === 'all') return true; // Show dateless if no date filters
         if (!d) return false;
+        
         const matchesYear = yearVal === 'all' || d.getFullYear() === parseInt(yearVal);
         const matchesMonth = month === 'all' || d.getMonth() === parseInt(month);
         return matchesYear && matchesMonth;
