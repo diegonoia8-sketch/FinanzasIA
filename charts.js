@@ -9,23 +9,41 @@ const centerTextPlugin = {
     id: 'centerText',
     beforeDraw: (chart) => {
         if (chart.config.type !== 'doughnut') return;
-        const { ctx, data, chartArea: { top, bottom, left, right, width, height } } = chart;
+        const { ctx, data } = chart;
         ctx.save();
-        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
-        if (total === 0) return;
-        const text = total.toFixed(2) + ' €';
+        
+        const meta = chart.getDatasetMeta(0);
+        if (meta.data.length === 0) { ctx.restore(); return; }
+        
+        let total = 0;
+        let income = 0;
+        let expense = 0;
+        
+        data.datasets[0].data.forEach((val, i) => {
+            if (chart.getDataVisibility(i)) {
+                total += val;
+                if (data.labels[i] === 'Ingresos') income = val;
+                if (data.labels[i] === 'Gastos') expense = val;
+            }
+        });
+        
+        if (total === 0 && income === 0 && expense === 0) { ctx.restore(); return; }
         
         ctx.font = 'bold 12px Inter';
-        ctx.fillStyle = '#64748b';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         
-        // Calculate center of the doughnut (ignoring legend)
-        const meta = chart.getDatasetMeta(0);
-        if (meta.data.length > 0) {
-            const centerX = meta.data[0].x;
-            const centerY = meta.data[0].y;
-            ctx.fillText(text, centerX, centerY);
+        const centerX = meta.data[0].x;
+        const centerY = meta.data[0].y;
+        
+        if (chart.canvas.id === 'incomeExpenseChart') {
+            ctx.fillStyle = '#4f46e5';
+            ctx.fillText(`Ingresos: ${income.toFixed(2)} €`, centerX, centerY - 8);
+            ctx.fillStyle = '#ef4444';
+            ctx.fillText(`Gastos: ${expense.toFixed(2)} €`, centerX, centerY + 8);
+        } else {
+            ctx.fillStyle = '#64748b';
+            ctx.fillText(total.toFixed(2) + ' €', centerX, centerY);
         }
         ctx.restore();
     }

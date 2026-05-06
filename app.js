@@ -92,7 +92,7 @@ const setupRealtimeListeners = (uid) => {
         renderUpcomingPayments(items);
         populateSelectOptions('recurringCategory', userCategories.filter(c => !['Transferencia','Saldo Inicial'].includes(c)));
         populateSelectOptions('recurringAccount', userAccounts);
-        // Listeners para activar/desactivar y eliminar
+        // Listeners para activar/desactivar, editar y eliminar
         document.querySelectorAll('.toggle-active-recurring').forEach(toggle => 
             toggle.addEventListener('change', async (e) => {
                 const id = e.currentTarget.dataset.id;
@@ -101,6 +101,22 @@ const setupRealtimeListeners = (uid) => {
                 if (active) updateData.lastActivatedAt = serverTimestamp();
                 await updateDoc(doc(db, dbCollections.recurring, id), updateData);
                 showInfoToast(active ? 'Suscripción activada' : 'Suscripción pausada');
+            })
+        );
+
+        document.querySelectorAll('.edit-recurring').forEach(btn =>
+            btn.addEventListener('click', (e) => {
+                const el = e.currentTarget;
+                document.getElementById('recurringId').value = el.dataset.id;
+                document.getElementById('recurringName').value = el.dataset.name;
+                document.getElementById('recurringAmount').value = el.dataset.amount;
+                document.getElementById('recurringDay').value = el.dataset.day;
+                document.getElementById('recurringCategory').value = el.dataset.category || '';
+                document.getElementById('recurringAccount').value = el.dataset.account || '';
+                document.getElementById('recurringFormTitle').textContent = 'Editar Suscripción';
+                document.getElementById('submitRecurringBtn').textContent = 'Guardar';
+                document.getElementById('cancelEditRecurringBtn').classList.remove('hidden');
+                document.getElementById('recurringName').focus();
             })
         );
 
@@ -236,9 +252,9 @@ const updateDashboardFuelMetrics = (txs) => {
         const avgE100 = (totalCost / totalKm) * 100;
         const avgPricePerLiter = totalCost / totalLiters;
         
-        document.getElementById('dashFuelLiters').textContent = `${avgL100.toFixed(1)}L`;
-        document.getElementById('dashFuelEuros').textContent = `${avgE100.toFixed(2)}€`;
-        document.getElementById('dashFuelPriceHist').textContent = `Media: ${avgPricePerLiter.toFixed(3)} €/L`;
+        document.getElementById('dashFuelLitersHist').textContent = `${avgL100.toFixed(1)} L`;
+        document.getElementById('dashFuelEurosHist').textContent = `${avgE100.toFixed(2)} €`;
+        document.getElementById('dashFuelPriceHist').textContent = `${avgPricePerLiter.toFixed(3)} €`;
         
         // 2. Último Repostaje (comparativa directa)
         const reversed = [...processed].reverse();
@@ -252,9 +268,12 @@ const updateDashboardFuelMetrics = (txs) => {
             const latestPricePerLiter = latest.amount / latest.liters;
             const diffL = ((lAvg - avgL100) / avgL100) * 100;
             const diffE = ((eAvg - avgE100) / avgE100) * 100;
-            document.getElementById('dashFuelLitersComp').innerHTML = `Último: ${lAvg.toFixed(1)}L <span class="${diffL > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diffL > 0 ? '+' : ''}${diffL.toFixed(1)}%)</span>`;
-            document.getElementById('dashFuelEurosComp').innerHTML = `Último: ${eAvg.toFixed(2)}€ <span class="${diffE > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diffE > 0 ? '+' : ''}${diffE.toFixed(1)}%)</span>`;
-            document.getElementById('dashFuelPriceLatest').textContent = `Último: ${latestPricePerLiter.toFixed(3)} €/L`;
+            
+            const renderDiff = (diff) => `<span class="text-[10px] ml-1 ${diff > 0 ? 'text-red-400' : 'text-emerald-400'}">(${diff > 0 ? '+' : ''}${diff.toFixed(1)}%)</span>`;
+            
+            document.getElementById('dashFuelLitersLatest').innerHTML = `${lAvg.toFixed(1)} L ${renderDiff(diffL)}`;
+            document.getElementById('dashFuelEurosLatest').innerHTML = `${eAvg.toFixed(2)} € ${renderDiff(diffE)}`;
+            document.getElementById('dashFuelPriceLatest').textContent = `${latestPricePerLiter.toFixed(3)} €`;
         }
     }
 };
@@ -875,14 +894,32 @@ document.getElementById('budgetForm').addEventListener('submit', async (e) => {
 // Recurring form
 document.getElementById('recurringForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    await saveRecurring(userId, {
+    const id = document.getElementById('recurringId').value;
+    const data = {
         name: document.getElementById('recurringName').value,
         amount: parseFloat(document.getElementById('recurringAmount').value),
         day: parseInt(document.getElementById('recurringDay').value),
         category: document.getElementById('recurringCategory').value || 'Facturas',
         account: document.getElementById('recurringAccount').value || ''
-    });
-    e.target.reset(); showSaveToast('Suscripción');
+    };
+    if (id) {
+        await updateDoc(doc(db, dbCollections.recurring, id), data);
+        showSaveToast('Suscripción actualizada');
+    } else {
+        await saveRecurring(userId, data);
+        showSaveToast('Suscripción');
+    }
+    document.getElementById('cancelEditRecurringBtn').click();
+});
+
+document.getElementById('cancelEditRecurringBtn')?.addEventListener('click', () => {
+    document.getElementById('recurringForm').reset();
+    document.getElementById('recurringId').value = '';
+    const formTitle = document.getElementById('recurringFormTitle');
+    if (formTitle) formTitle.textContent = 'Añadir Suscripción';
+    const submitBtn = document.getElementById('submitRecurringBtn');
+    if (submitBtn) submitBtn.textContent = 'Añadir';
+    document.getElementById('cancelEditRecurringBtn').classList.add('hidden');
 });
 
 // KEYBOARD SHORTCUTS
@@ -1129,7 +1166,11 @@ const renderPayrollsChart = () => {
     
     const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
     const labels = entries.map(e => `${monthNames[e.month-1]} ${e.year.toString().slice(-2)}`);
-    const data = entries.map(e => e[metric] || (metric === 'txAmount' ? e.txAmount : 0) || 0);
+    const data = entries.map(e => {
+        if (metric === 'dietasLoc') return (e.dietas || 0) + (e.locomocion || 0);
+        if (metric === 'txAmount') return e.txAmount || 0;
+        return e[metric] || 0;
+    });
     
     payrollChartInstance = new Chart(ctx, {
         type: 'bar',
@@ -1202,8 +1243,8 @@ const renderPayrollsTable = () => {
                 <td class="p-4 font-bold text-gray-600">
                     ${p.irpf ? p.irpf.toFixed(2)+'€' : '–'}
                 </td>
-                <td class="p-4 hidden md:table-cell text-gray-400">${p.ss ? p.ss.toFixed(2)+'€' : '–'}</td>
-                <td class="p-4 hidden md:table-cell text-gray-400">${p.hasPayroll ? ((p.dietas||0) + (p.locomocion||0)).toFixed(2)+'€' : '–'}</td>
+                <td class="p-4 text-gray-400">${p.ss ? p.ss.toFixed(2)+'€' : '–'}</td>
+                <td class="p-4 text-gray-400">${p.hasPayroll ? ((p.dietas||0) + (p.locomocion||0)).toFixed(2)+'€' : '–'}</td>
                 <td class="p-4 text-center">
                     <div class="flex items-center justify-center gap-2">
                         ${hasPDF ? `<a href="${downloadUrl}" download="Nomina_${p.year}_${p.month}.pdf" target="_blank" class="payroll-download-btn" title="Descargar PDF">📥</a>` : ''}
