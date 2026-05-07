@@ -306,13 +306,13 @@
         <div id="transactions" class="tab-content hidden">
             <!-- Main menu -->
             <div id="transactionMain" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <button id="registerTransactionBtn" class="text-white font-black py-8 px-6 rounded-3xl shadow-xl transition active:scale-95 flex flex-col items-center" style="background:rgb(var(--accent))">
-                    <div class="bg-white/20 p-3 rounded-full mb-3"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5"><path d="M12 4v16m8-8H4" stroke-linecap="round"/></svg></div>
-                    Nuevo Movimiento
+                <button id="registerTransactionBtn" class="flex flex-col items-center justify-center py-10 px-6 bg-indigo-50/80 border border-indigo-100 text-indigo-700 rounded-[3rem] shadow-sm hover:bg-indigo-100/80 transition-all active:scale-95 group">
+                    <div class="text-5xl mb-4 group-hover:scale-110 transition-transform">➕</div>
+                    <span class="font-black text-lg tracking-tight">Nuevo Movimiento</span>
                 </button>
-                <button id="viewHistoryBtn" class="bg-white border-2 border-gray-100 text-gray-800 font-black py-8 px-6 rounded-3xl hover:bg-gray-50 transition flex flex-col items-center">
-                    <div class="bg-gray-100 p-3 rounded-full mb-3 text-gray-400"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round"/></svg></div>
-                    Ver Historial
+                <button id="viewHistoryBtn" class="flex flex-col items-center justify-center py-10 px-6 bg-gray-50/80 border border-gray-100 text-gray-700 rounded-[3rem] shadow-sm hover:bg-gray-100/80 transition-all active:scale-95 group">
+                    <div class="text-5xl mb-4 group-hover:scale-110 transition-transform">📂</div>
+                    <span class="font-black text-lg tracking-tight">Ver Historial</span>
                 </button>
             </div>
 
@@ -331,10 +331,19 @@
             <div id="transactionMenu" class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 hidden">
                 <button id="backFromTransactionBtn" class="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-indigo-600 mb-6 block transition">← Atrás</button>
                 <h2 class="text-2xl font-black mb-6">¿Qué registras?</h2>
-                <div class="grid grid-cols-3 gap-4">
-                    <button id="addIncomeBtn" class="p-6 border-2 border-emerald-100 rounded-2xl hover:border-emerald-400 bg-emerald-50/30 transition text-center"><div class="text-2xl mb-2">💰</div><span class="block font-black text-emerald-700 text-sm">Ingreso</span></button>
-                    <button id="addExpenseBtn" class="p-6 border-2 border-red-100 rounded-2xl hover:border-red-400 bg-red-50/30 transition text-center"><div class="text-2xl mb-2">💸</div><span class="block font-black text-red-700 text-sm">Gasto</span></button>
-                    <button id="addTransferBtn" class="p-6 border-2 border-blue-100 rounded-2xl hover:border-blue-400 bg-blue-50/30 transition text-center"><div class="text-2xl mb-2">🔄</div><span class="block font-black text-blue-700 text-sm">Traspaso</span></button>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button id="addIncomeBtn" class="flex flex-col items-center justify-center p-6 md:p-8 bg-emerald-50/50 border border-emerald-100 text-gray-800 rounded-[2.5rem] hover:bg-emerald-100/50 transition-all active:scale-95 group">
+                        <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">💰</div>
+                        <span class="font-black text-sm md:text-base tracking-tight text-emerald-700">Ingreso</span>
+                    </button>
+                    <button id="addExpenseBtn" class="flex flex-col items-center justify-center p-6 md:p-8 bg-rose-50/50 border border-rose-100 text-gray-800 rounded-[2.5rem] hover:bg-rose-100/50 transition-all active:scale-95 group">
+                        <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">💸</div>
+                        <span class="font-black text-sm md:text-base tracking-tight text-rose-700">Gasto</span>
+                    </button>
+                    <button id="addTransferBtn" class="flex flex-col items-center justify-center p-6 md:p-8 bg-blue-50/50 border border-blue-100 text-gray-800 rounded-[2.5rem] hover:bg-blue-100/50 transition-all active:scale-95 group">
+                        <div class="text-4xl mb-3 group-hover:scale-110 transition-transform">🔄</div>
+                        <span class="font-black text-sm md:text-base tracking-tight text-blue-700">Traspaso</span>
+                    </button>
                 </div>
             </div>
 
