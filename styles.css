@@ -286,3 +286,36 @@ body {
     background: rgb(var(--card)) !important;
 }
 
+
+/* Focus styles for visual feedback */
+input:focus, select:focus, textarea:focus {
+    border-color: rgba(var(--accent), 0.5) !important;
+    box-shadow: 0 0 0 4px rgba(var(--accent), 0.1) !important;
+    background-color: white !important;
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+/* Custom scrollbar for transaction table */
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
+
+/* Sticky table header fix */
+#transactionsTable thead th {
+    background: #f9fafb; /* bg-gray-50 */
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}

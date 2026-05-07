@@ -11,8 +11,8 @@ export const calcHealthScore = (transactions, budgets = []) => {
         const d = t.date?.toDate?.();
         return d && d.getMonth() === month && d.getFullYear() === year;
     });
-    const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
 
     // Savings rate (0-40 pts)
     const savingsRate = income > 0 ? Math.max(0, (income - expense) / income) : 0;
@@ -49,8 +49,8 @@ export const calcEndOfMonthPrediction = (transactions) => {
         const d = t.date?.toDate?.();
         return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
-    const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
     const dailyRate = dayOfMonth > 0 ? expense / dayOfMonth : 0;
     const projectedExpense = expense + (dailyRate * daysLeft);
     const projectedSavings = income - projectedExpense;
@@ -70,8 +70,8 @@ export const calcMonthComparison = (transactions) => {
         return d && d.getMonth() === m && d.getFullYear() === y;
     });
 
-    const sumExpense = (txs) => txs.filter(t => t.type === 'expense' && !['Transferencia'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const sumIncome = (txs) => txs.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const sumExpense = (txs) => txs.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const sumIncome = (txs) => txs.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
 
     const cTxs = filterMonth(cM, cY);
     const pTxs = filterMonth(pM, pY);
@@ -121,7 +121,7 @@ export const detectAlerts = (transactions, budgets = []) => {
         const res = {};
         transactions.filter(t => {
             const d = t.date?.toDate?.();
-            return d && d.getMonth() === m && d.getFullYear() === y && t.type === 'expense' && !['Transferencia','Saldo Inicial'].includes(t.category);
+            return d && d.getMonth() === m && d.getFullYear() === y && t.type === 'expense' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category);
         }).forEach(t => { res[t.category] = (res[t.category] || 0) + t.amount; });
         return res;
     };
@@ -149,7 +149,7 @@ export const calcHeatmapData = (transactions) => {
 
     transactions.filter(t => {
         const d = t.date?.toDate?.();
-        return d && d >= start && t.type === 'expense' && !['Transferencia'].includes(t.category);
+        return d && d >= start && t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category);
     }).forEach(t => {
         const d = t.date.toDate();
         const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -169,18 +169,16 @@ export const calcTendencias = (transactions, categories) => {
     }
 
     const colors = ['#4f46e5','#ef4444','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
-    const topCats = [...new Set(
-        transactions.filter(t => t.type === 'expense' && !['Transferencia','Saldo Inicial', 'No Contabilizados'].includes(t.category))
-            .sort((a, b) => b.amount - a.amount)
-            .map(t => t.category)
-    )].slice(0, 5);
+    const topCats = ["Ocio", "Combustible", "Comidas Fuera", "Supermercado", "Energía"];
 
     const datasets = topCats.map((cat, i) => ({
         label: cat,
         data: months.map(m => {
             const txs = transactions.filter(t => {
                 const d = t.date?.toDate?.();
-                return d && d.getMonth() === m.month && d.getFullYear() === m.year && t.category === cat && t.type === 'expense' && t.category !== 'No Contabilizados';
+                const tCat = (t.category || "").trim().toLowerCase();
+                const targetCat = cat.trim().toLowerCase();
+                return d && d.getMonth() === m.month && d.getFullYear() === m.year && tCat === targetCat && t.type === 'expense';
             });
             return txs.reduce((s, t) => s + t.amount, 0);
         }),

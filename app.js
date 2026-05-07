@@ -470,6 +470,10 @@ document.querySelectorAll('.tab-button').forEach(btn => btn.addEventListener('cl
 
 // Transaction navigation
 document.getElementById('registerTransactionBtn').addEventListener('click', showTransactionMenu);
+document.getElementById('quickRegisterBtn')?.addEventListener('click', () => {
+    showTab('transactions');
+    showTransactionMenu();
+});
 document.getElementById('viewHistoryBtn').addEventListener('click', () => { document.getElementById('transactionMain').classList.add('hidden'); document.getElementById('transactionHistory').classList.remove('hidden'); applyFiltersAndRender(); });
 document.getElementById('backFromTransactionBtn').addEventListener('click', () => { document.getElementById('transactionMenu').classList.add('hidden'); document.getElementById('transactionMain').classList.remove('hidden'); });
 document.getElementById('backFromFormBtn').addEventListener('click', () => { document.getElementById('transactionContent').classList.add('hidden'); document.getElementById('transactionMenu').classList.remove('hidden'); resetTransactionForm(); });
@@ -535,9 +539,19 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
 
         await saveTransaction(userId, txId, data, imageToSave);
         resetTransactionForm(); currentScannedImage = null;
-        document.getElementById('transactionContent').classList.add('hidden');
-        document.getElementById('transactionMain').classList.remove('hidden');
-        showSaveToast('Transacción');
+        if (txId) {
+            // If editing, go back to history
+            document.getElementById('transactionContent').classList.add('hidden');
+            document.getElementById('transactionHistory').classList.remove('hidden');
+            applyFiltersAndRender();
+        } else {
+            // If new, just show toast and keep form open for more registrations
+            showSaveToast('Transacción');
+            // Keep on same screen with empty fields
+            const type = document.getElementById('type').value;
+            if (type === 'income') document.getElementById('addIncomeBtn').click();
+            else document.getElementById('addExpenseBtn').click();
+        }
     } catch (err) { showErrorToast('Error al guardar'); console.error(err); }
     finally { btn.disabled = false; btn.textContent = 'Guardar'; }
 });
@@ -780,40 +794,8 @@ const applyDarkMode = (force) => {
 document.getElementById('toggleDarkMode').addEventListener('click', () => applyDarkMode());
 if (localStorage.getItem('theme') === 'dark') applyDarkMode(true);
 
-// VOICE (Chrome/Safari)
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (SpeechRecognition) {
-    const voiceBtn = document.getElementById('voiceBtn');
-    voiceBtn.classList.remove('hidden');
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'es-ES'; recognition.interimResults = false;
-    let listening = false;
-    voiceBtn.addEventListener('click', () => {
-        if (listening) { recognition.stop(); listening = false; voiceBtn.classList.remove('voice-btn-active'); return; }
-        recognition.start(); listening = true; voiceBtn.classList.add('voice-btn-active');
-        showInfoToast('Escuchando... Di "gasté 30 euros en comida"');
-    });
-    recognition.onresult = async (e) => {
-        const transcript = e.results[0][0].transcript;
-        listening = false; voiceBtn.classList.remove('voice-btn-active');
-        showInfoToast(`Procesando: "${transcript}"`);
-        try {
-            const result = await callGemini("Eres un parser financiero. Extrae JSON de la frase del usuario.", `Frase: "${transcript}". Devuelve: {"amount": number, "description": string, "category": string, "type": "expense|income"}`, null);
-            const json = JSON.parse(result.replace(/```json|```/g, '').trim());
-            showTransactionMenu();
-            if (json.type === 'income') document.getElementById('addIncomeBtn').click();
-            else document.getElementById('addExpenseBtn').click();
-            setTimeout(() => {
-                if (json.amount) document.getElementById('amount').value = json.amount;
-                if (json.description) document.getElementById('description').value = json.description;
-                if (json.category && userCategories.includes(json.category)) document.getElementById('category').value = json.category;
-                const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-                document.getElementById('date').value = d.toISOString().split('T')[0];
-            }, 100);
-        } catch (err) { showErrorToast('No entendí la frase'); }
-    };
-    recognition.onerror = () => { listening = false; voiceBtn.classList.remove('voice-btn-active'); };
-}
+// Voice recognition removed as per user request
+
 
 // CHAT
 const chatWidget = document.getElementById('chatWidget');
