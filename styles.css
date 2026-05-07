@@ -56,8 +56,30 @@ body {
 .focus\:ring-indigo-200:focus, .focus\:ring-indigo-500:focus { --tw-ring-color: rgba(var(--accent), .3) !important; }
 
 /* ===== TAB SYSTEM ===== */
-.tab-button { transition: color .2s; }
-.tab-button.active { color: rgb(var(--accent)); border-bottom: 2px solid rgb(var(--accent)); }
+.tab-button { 
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    border: none !important;
+}
+.tab-button.active { 
+    color: rgb(var(--accent)) !important;
+    background: rgba(var(--accent), 0.15) !important;
+}
+.dark .tab-button.active {
+    background: rgba(var(--accent), 0.25) !important;
+    color: white !important;
+}
+.tab-button.active svg {
+    filter: drop-shadow(0 0 2px rgba(var(--accent), 0.3));
+}
+/* Mobile specific tweak to keep bottom bar simple */
+@media (max-width: 767px) {
+    .tab-button.active { 
+        background: transparent !important;
+        border-top: 3px solid rgb(var(--accent)) !important;
+        border-radius: 0;
+    }
+}
 
 /* ===== BALANCE PRIVACY ===== */
 .pixelate-text { filter: blur(5px); transition: filter .3s ease; }
@@ -102,13 +124,30 @@ body {
 .loading-text { animation: pulse-soft 1.5s infinite; }
 
 /* Staggered card entry */
-.dash-card { animation: slideUp .4s ease both; }
+.dash-card { 
+    animation: slideUp .4s ease both;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+.dash-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+.dark .dash-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+}
 .dash-card:nth-child(2) { animation-delay: .06s; }
 .dash-card:nth-child(3) { animation-delay: .12s; }
 .dash-card:nth-child(4) { animation-delay: .18s; }
 .dash-card:nth-child(5) { animation-delay: .24s; }
 .dash-card:nth-child(6) { animation-delay: .3s; }
 .dash-card:nth-child(7) { animation-delay: .36s; }
+
+/* Responsive tweaks for smaller screens */
+@media (max-width: 400px) {
+    .dash-card { padding: 1rem !important; }
+    .text-2xl { font-size: 1.25rem !important; }
+    .text-xl { font-size: 1.125rem !important; }
+}
 
 /* ===== TOAST ===== */
 #toastContainer { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: .75rem; pointer-events: none; }
@@ -314,8 +353,28 @@ input:focus, select:focus, textarea:focus {
 
 /* Sticky table header fix */
 #transactionsTable thead th {
-    background: #f9fafb; /* bg-gray-50 */
+    background: rgb(var(--bg)); /* Updated for dark mode support */
     position: sticky;
     top: 0;
     z-index: 10;
+}
+
+/* Desktop navigation bar style */
+.pc-nav {
+    background: rgba(var(--card), 0.8);
+    backdrop-blur: 12px;
+    -webkit-backdrop-filter: blur(12px);
+}
+.dark .pc-nav {
+    background: rgba(var(--card), 0.85);
+}
+
+/* Ensure table headers look good in dark mode */
+#transactionsTable thead th {
+    color: rgb(var(--text-2)) !important;
+    font-weight: 900;
+}
+.dark #transactionsTable thead th {
+    background: rgb(var(--bg)) !important;
+    border-bottom: 1px solid rgb(var(--border)) !important;
 }

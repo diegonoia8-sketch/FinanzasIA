@@ -608,7 +608,14 @@ document.getElementById('accountingBookForm').addEventListener('submit', async (
 
 // Filters & Export
 document.getElementById('applyFiltersBtn').addEventListener('click', applyFiltersAndRender);
-document.getElementById('clearFiltersBtn').addEventListener('click', () => { document.getElementById('filterStartDate').value = ''; document.getElementById('filterEndDate').value = ''; document.getElementById('filterConcept').value = ''; applyFiltersAndRender(); });
+document.getElementById('clearFiltersBtn').addEventListener('click', () => { 
+    document.getElementById('filterStartDate').value = ''; 
+    document.getElementById('filterEndDate').value = ''; 
+    document.getElementById('filterConcept').value = ''; 
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterAccount').value = '';
+    applyFiltersAndRender(); 
+});
 document.getElementById('filterConcept')?.addEventListener('input', applyFiltersAndRender);
 document.getElementById('historyCategoryType')?.addEventListener('change', applyFiltersAndRender);
 
