@@ -26,6 +26,7 @@
     --text-2: 100 116 139;
     --border: 30 41 59;
     --shadow: 0 4px 6px rgba(0,0,0,.3);
+    color-scheme: dark;
 }
 
 /* ===== BASE ===== */
@@ -276,9 +277,15 @@ body {
 
 /* ===== FORM INPUTS IN DARK ===== */
 .dark input, .dark select, .dark textarea {
-    background-color: rgb(var(--bg)) !important;
+    background-color: rgb(var(--card)) !important;
     color: rgb(var(--text)) !important;
     border-color: rgb(var(--border)) !important;
+}
+
+/* Fix for native dropdown options in dark mode */
+.dark select option {
+    background-color: rgb(var(--card));
+    color: rgb(var(--text));
 }
 
 /* ===== VOICE BTN ===== */
