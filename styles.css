@@ -399,3 +399,14 @@ input:focus, select:focus, textarea:focus {
 .dark .bg-gray-50\/80 { background-color: rgba(255, 255, 255, 0.05) !important; }
 .dark .border-gray-100 { border-color: rgba(255, 255, 255, 0.1) !important; }
 .dark .text-gray-700 { color: #9ca3af !important; }
+
+/* Mobile navigation bar style */
+.mobile-nav {
+    background: rgba(var(--card), 0.9);
+    backdrop-blur: 12px;
+    -webkit-backdrop-filter: blur(12px);
+}
+.dark .mobile-nav {
+    background: rgba(var(--card), 0.95);
+    border-top-color: rgb(var(--border)) !important;
+}
