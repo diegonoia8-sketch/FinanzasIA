@@ -499,18 +499,8 @@ document.getElementById('addExpenseBtn').addEventListener('click', () => {
 });
 document.getElementById('addTransferBtn').addEventListener('click', () => { showTransactionForm(); document.getElementById('transferForm').classList.remove('hidden'); });
 
-// Auto-categorization while typing
-document.getElementById('description').addEventListener('input', async (e) => {
-    const val = e.target.value;
-    if (val.length < 3) { document.getElementById('autoCategorizationHint').classList.add('hidden'); return; }
-    const suggested = await categorizarConcepto(val, userCategories);
-    const hint = document.getElementById('autoCategorizationHint');
-    if (suggested) {
-        hint.textContent = `💡 Categoría sugerida: ${suggested}`;
-        hint.classList.remove('hidden');
-        document.getElementById('category').value = suggested;
-    } else { hint.classList.add('hidden'); }
-});
+// Auto-categorization disabled as per user request
+
 
 // Transaction form submit
 document.getElementById('transactionForm').addEventListener('submit', async (e) => {
