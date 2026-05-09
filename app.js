@@ -920,6 +920,53 @@ document.getElementById('deleteAllTicketsBtn')?.addEventListener('click', () => 
 
 // ─── PAYROLLS LOGIC ─────────────────────────────────────────────────────────
 
+const handlePayrollDownload = (base64OrUrl, filename) => {
+    if (!base64OrUrl) return;
+    
+    // Si es una URL normal (Firebase Storage), abrir directamente
+    if (base64OrUrl.startsWith('http')) {
+        window.open(base64OrUrl, '_blank');
+        return;
+    }
+
+    // Si es Base64, convertir a Blob para mejor compatibilidad en iOS
+    try {
+        const parts = base64OrUrl.split(';base64,');
+        const contentType = parts[0].split(':')[1] || 'application/pdf';
+        const raw = window.atob(parts[1]);
+        const rawLength = raw.length;
+        const uInt8Array = new Uint8Array(rawLength);
+
+        for (let i = 0; i < rawLength; ++i) {
+            uInt8Array[i] = raw.charCodeAt(i);
+        }
+
+        const blob = new Blob([uInt8Array], { type: contentType });
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // En iOS PWA, abrir el Blob URL es la forma más fiable de activar
+        // el visor de PDF nativo o el menú de compartir.
+        const newWindow = window.open(blobUrl, '_blank');
+        
+        if (!newWindow) {
+            // Fallback si el navegador bloquea el popup
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        
+        // Limpiar para evitar fugas de memoria
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+    } catch (e) {
+        console.error("Error en descarga:", e);
+        window.open(base64OrUrl, '_blank');
+    }
+};
+
+
 const verifyPayrollAccess = () => {
     if (!payrollsPassword) {
         document.getElementById('payrollPassTitle').textContent = "Configurar Contraseña";
@@ -1229,7 +1276,7 @@ const renderPayrollsTable = () => {
                 <td class="p-4 text-gray-400">${p.hasPayroll ? ((p.dietas || 0) + (p.locomocion || 0)).toFixed(2) + '€' : '–'}</td>
                 <td class="p-4 text-center">
                     <div class="flex items-center justify-center gap-2">
-                        ${hasPDF ? `<a href="${downloadUrl}" download="Nomina_${p.year}_${p.month}.pdf" target="_blank" class="payroll-download-btn" title="Descargar PDF">📥</a>` : ''}
+                        ${hasPDF ? `<button class="payroll-download-btn download-payroll-btn" data-index="${entries.indexOf(p)}" title="Descargar PDF">📥</button>` : ''}
                         <button class="upload-to-row-btn text-[10px] bg-indigo-50 text-indigo-600 font-black py-1 px-3 rounded-lg hover:bg-indigo-100 transition" 
                                 data-month="${p.year}-${String(p.month).padStart(2, '0')}"
                                 data-txid="${p.txId || ''}">
@@ -1250,6 +1297,14 @@ const renderPayrollsTable = () => {
     document.getElementById('payrollTotalIRPF').textContent = totals.irpf > 0 ? totals.irpf.toFixed(2) + '€' : '–';
     document.getElementById('payrollTotalSS').textContent = totals.ss > 0 ? totals.ss.toFixed(2) + '€' : '–';
     document.getElementById('payrollTotalDietas').textContent = totals.dietasLoc > 0 ? totals.dietasLoc.toFixed(2) + '€' : '–';
+
+    tbody.querySelectorAll('.download-payroll-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const p = entries[e.currentTarget.dataset.index];
+            const url = p.pdfBase64 || p.pdfUrl;
+            handlePayrollDownload(url, `Nomina_${p.year}_${p.month}.pdf`);
+        });
+    });
 
     tbody.querySelectorAll('.delete-pdf-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
