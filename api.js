@@ -16,7 +16,7 @@ export async function callGemini(systemPrompt, userPrompt, base64Image = null) {
         parts.push({ inline_data: { mime_type: mimeType, data } });
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ parts }] })
@@ -68,7 +68,7 @@ Si te preguntan por transacciones específicas (ej: "cuánto gasté en X", "en q
         maxCalls--;
         const trimmedHistory = chatHistory.slice(-20);
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
