@@ -2,12 +2,12 @@ import { auth, db, dbCollections } from "./config.js";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { showTab, populateSelectOptions, toggleBalancesVisibility, showLoadingOverlay, hideLoadingOverlay } from "./ui.js";
-import { saveTransaction, deleteDocument, addSetting, saveBudget, saveRecurring, savePayroll, updatePayrollIRPF } from "./db.js";
+import { saveTransaction, deleteDocument, addSetting, saveRecurring, savePayroll, updatePayrollIRPF } from "./db.js";
 import { renderIncomeExpenseChart, renderCategoryAnalysisChart, renderCashFlowChart, renderTendenciasChart, renderHeatmap, renderHistoryCategoryChart } from "./charts.js";
 import { callGemini, callGeminiChat, resetChatHistory, categorizarConcepto, getConsejoDelDia, buildFinancialContext, compressImage, analizarNomina } from "./api.js";
 import { generateAiReport, generateExlabesaReport, generateFuelReport } from "./reports.js";
 import { showToast, showSaveToast, showDeleteToast, showErrorToast, showInfoToast } from "./toast.js";
-import { setupBudgetsListener, renderBudgetList, setupRecurringListener, renderRecurringList, renderUpcomingPayments, checkAndRegisterRecurring } from "./features.js";
+import { setupRecurringListener, renderRecurringList, renderUpcomingPayments, checkAndRegisterRecurring } from "./features.js";
 import { calcHealthScore, getHealthLabel, calcEndOfMonthPrediction, calcMonthComparison, detectAlerts, calcHeatmapData, calcTendencias } from "./analytics.js";
 import { parseCSVFile, guessCategory } from "./csv-importer.js";
 
@@ -15,12 +15,12 @@ import { parseCSVFile, guessCategory } from "./csv-importer.js";
 let userId = null;
 let allUserTransactions = [];
 let allRecurringItems = [];
-let allBudgets = [];
+
 let userCategories = [];
 let userAccounts = [];
 let userAccountingBooks = [];
 let currentScannedImage = null;
-let budgetsUnsubscribe = null;
+
 let recurringUnsubscribe = null;
 let compactMode = false;
 let pendingCsvTransactions = [];
@@ -64,12 +64,6 @@ const setupRealtimeListeners = (uid) => {
         renderPayrollsChart();
         if (!document.getElementById('transactionHistory').classList.contains('hidden')) applyFiltersAndRender();
         if (!document.getElementById('investments').classList.contains('hidden')) renderInvestments();
-        if (budgetsUnsubscribe) budgetsUnsubscribe();
-        budgetsUnsubscribe = setupBudgetsListener(uid, allUserTransactions, (budgets) => {
-            allBudgets = budgets;
-            renderBudgetList(budgets);
-            updateDashboardAnalytics();
-        });
     });
 
     // Settings
@@ -169,7 +163,6 @@ const renderSettings = (settings) => {
 
     const catsExp = userCategories.filter(c => !['Transferencia', 'Saldo Inicial'].includes(c));
     populateSelectOptions('category', catsExp);
-    populateSelectOptions('budgetCategory', catsExp);
     populateSelectOptions('account', userAccounts);
     populateSelectOptions('transferFrom', userAccounts);
     populateSelectOptions('transferTo', userAccounts);
@@ -282,7 +275,7 @@ const updateDashboardFuelMetrics = (txs) => {
 
 const updateDashboardAnalytics = () => {
     // Health Score
-    const score = calcHealthScore(allUserTransactions, allBudgets);
+    const score = calcHealthScore(allUserTransactions);
     const { label, color } = getHealthLabel(score);
     const ring = document.getElementById('scoreRing');
     if (ring) { ring.style.setProperty('--score-pct', `${score}%`); ring.style.background = `conic-gradient(${color} ${score}%, #e5e7eb ${score}%)`; }
@@ -306,7 +299,7 @@ const updateDashboardAnalytics = () => {
     }
 
     // Alerts
-    const alerts = detectAlerts(allUserTransactions, allBudgets);
+    const alerts = detectAlerts(allUserTransactions);
     const ac = document.getElementById('alertsContainer');
     if (ac) {
         ac.innerHTML = alerts.map(a => `<div class="alert-${a.type} rounded-2xl px-4 py-3 text-sm font-medium flex items-start gap-2"><span>${a.icon}</span><span>${a.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</span></div>`).join('');
@@ -330,7 +323,7 @@ const updateDashboardAnalytics = () => {
 
     // Daily tip (async, non-blocking)
     if (localStorage.getItem('geminiApiKey')) {
-        getConsejoDelDia(allUserTransactions, allBudgets).then(tip => {
+        getConsejoDelDia(allUserTransactions).then(tip => {
             if (!tip) return;
             const card = document.getElementById('aiTipCard');
             const text = document.getElementById('aiTipText');
@@ -823,7 +816,7 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
     document.getElementById('chatSendIcon').classList.add('hidden');
     document.getElementById('chatLoadingIcon').classList.remove('hidden');
     try {
-        const context = buildFinancialContext(allUserTransactions, allBudgets);
+        const context = buildFinancialContext(allUserTransactions);
         const reply = await callGeminiChat(msg, context, allUserTransactions);
         addBotMsg(reply);
     } catch (err) { addBotMsg(`Error: ${err.message}`); }
@@ -866,12 +859,6 @@ document.getElementById('generateFuelBtn').addEventListener('click', () => {
     generateFuelReport(allUserTransactions, start, end);
 });
 
-// Budget form
-document.getElementById('budgetForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await saveBudget(userId, { category: document.getElementById('budgetCategory').value, amount: parseFloat(document.getElementById('budgetAmount').value) });
-    e.target.reset(); showSaveToast('Presupuesto');
-});
 
 // Recurring form
 document.getElementById('recurringForm').addEventListener('submit', async (e) => {

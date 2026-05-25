@@ -4,48 +4,7 @@
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { db, dbCollections } from "./config.js";
 
-export const setupBudgetsListener = (userId, transactions, callback) => {
-    return onSnapshot(query(collection(db, dbCollections.budgets), where("userId", "==", userId)), (snapshot) => {
-        const budgets = snapshot.docs.map(doc => doc.data());
-        const currentMonth = new Date().getMonth();
-        const currentYear = new Date().getFullYear();
-        const budgetStatus = budgets.map(b => {
-            const spent = transactions
-                .filter(t => t.category === b.category && t.type === 'expense' &&
-                    t.date?.toDate?.().getMonth() === currentMonth &&
-                    t.date?.toDate?.().getFullYear() === currentYear)
-                .reduce((sum, t) => sum + t.amount, 0);
-            return { ...b, spent };
-        });
-        callback(budgetStatus);
-    });
-};
 
-export const renderBudgetList = (budgets) => {
-    const list = document.getElementById('budgetList');
-    if (!list) return;
-    if (budgets.length === 0) {
-        list.innerHTML = '<div class="p-10 text-center text-gray-300 border-2 border-dashed rounded-2xl">No has definido metas mensuales aún.</div>';
-        return;
-    }
-    list.innerHTML = budgets.map(b => {
-        const percent = b.amount > 0 ? Math.min((b.spent / b.amount) * 100, 100) : 0;
-        const color = percent > 100 ? 'bg-red-500' : percent > 80 ? 'bg-amber-500' : 'bg-emerald-500';
-        const textColor = percent > 100 ? 'text-red-500' : percent > 80 ? 'text-amber-600' : 'text-gray-500';
-        return `
-            <div class="space-y-2 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <div class="flex justify-between text-sm font-bold">
-                    <span class="text-gray-800">${b.category}</span>
-                    <span class="${textColor}">${b.spent.toFixed(2)}€ <span class="font-normal text-gray-400">/ ${b.amount}€</span></span>
-                </div>
-                <div class="w-full bg-gray-200 rounded-full h-2">
-                    <div class="${color} h-2 rounded-full transition-all duration-700" style="width: ${percent}%"></div>
-                </div>
-                <p class="text-[10px] text-gray-400">${percent.toFixed(0)}% consumido — Quedan ${Math.max(0, b.amount - b.spent).toFixed(2)}€</p>
-            </div>
-        `;
-    }).join('');
-};
 
 export const setupRecurringListener = (userId, callback) => {
     return onSnapshot(query(collection(db, dbCollections.recurring), where("userId", "==", userId)), (snapshot) => {
@@ -173,12 +132,4 @@ export const checkAndRegisterRecurring = async (userId, recurringItems, transact
     return registered;
 };
 
-// Check budget alerts at 80%
-export const getBudgetAlerts = (budgets) => {
-    return budgets.filter(b => b.amount > 0).map(b => {
-        const pct = (b.spent / b.amount) * 100;
-        if (pct >= 100) return { b, level: 'over', pct };
-        if (pct >= 80) return { b, level: 'warning', pct };
-        return null;
-    }).filter(Boolean);
-};
+

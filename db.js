@@ -60,10 +60,6 @@ export const addSetting = async (userId, settingType, value, initialBalance = nu
     return false;
 };
 
-export const saveBudget = async (userId, data) => {
-    const budgetRef = doc(db, dbCollections.budgets, `${userId}_${data.category}`);
-    await setDoc(budgetRef, { ...data, userId, updatedAt: serverTimestamp() });
-};
 
 export const saveRecurring = async (userId, data) => {
     await addDoc(collection(db, dbCollections.recurring), { 

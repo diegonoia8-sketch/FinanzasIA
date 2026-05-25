@@ -172,7 +172,7 @@ export async function categorizarConcepto(description, categories) {
 }
 
 // Daily financial tip based on real data
-export async function getConsejoDelDia(transactions, budgets = []) {
+export async function getConsejoDelDia(transactions) {
     const apiKey = localStorage.getItem('geminiApiKey');
     if (!apiKey) return null;
 
@@ -197,12 +197,10 @@ export async function getConsejoDelDia(transactions, budgets = []) {
         return acc;
     }, {});
     const topCat = Object.entries(catSummary).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    const budgetsOver = budgets.filter(b => b.spent > b.amount * 0.8).map(b => b.category);
 
     try {
         const prompt = `Basándote en estos datos del usuario este mes:
 - Top gastos: ${JSON.stringify(topCat)}
-- Presupuestos en riesgo: ${JSON.stringify(budgetsOver)}
 Da UN consejo financiero práctico y personalizado en máximo 2 frases. Sé específico con sus datos, positivo pero directo. Sin emojis al inicio.`;
 
         const tip = await callGemini("Eres un asesor financiero experto y conciso.", prompt);
@@ -215,7 +213,7 @@ Da UN consejo financiero práctico y personalizado en máximo 2 frases. Sé espe
 }
 
 // Build financial context string for chat
-export const buildFinancialContext = (transactions, budgets = []) => {
+export const buildFinancialContext = (transactions) => {
     const now = new Date();
     const month = now.getMonth(), year = now.getFullYear();
     
@@ -251,8 +249,7 @@ export const buildFinancialContext = (transactions, budgets = []) => {
     return `=== RESUMEN FINANCIERO MES ACTUAL ===
 Ingresos: ${income.toFixed(2)}€, Gastos: ${expense.toFixed(2)}€, Ahorro: ${(income - expense).toFixed(2)}€
 Medias históricas: Ingresos/mes: ${avgIncome.toFixed(2)}€, Gastos/mes: ${avgExpense.toFixed(2)}€
-Saldos de cuentas: ${JSON.stringify(accounts)}
-Presupuestos actuales: ${JSON.stringify(budgets.map(b => ({ categoria: b.category, gastado: b.spent, limite: b.amount })))}`;
+Saldos de cuentas: ${JSON.stringify(accounts)}`;
 };
 
 export const compressImage = (base64Str, maxWidth = 1000, quality = 0.7) => {

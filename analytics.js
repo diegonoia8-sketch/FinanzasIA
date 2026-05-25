@@ -4,7 +4,7 @@
  */
 
 // --- HEALTH SCORE (0-100) ---
-export const calcHealthScore = (transactions, budgets = []) => {
+export const calcHealthScore = (transactions) => {
     const now = new Date();
     const month = now.getMonth(), year = now.getFullYear();
     const txMonth = transactions.filter(t => {
@@ -14,21 +14,14 @@ export const calcHealthScore = (transactions, budgets = []) => {
     const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
     const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
 
-    // Savings rate (0-40 pts)
+    // Savings rate (0-60 pts)
     const savingsRate = income > 0 ? Math.max(0, (income - expense) / income) : 0;
-    const savingsScore = Math.min(40, savingsRate * 133); // 30% savings = 40pts
+    const savingsScore = Math.min(60, savingsRate * 200); // 30% savings = 60pts
 
-    // Budget compliance (0-30 pts)
-    let budgetScore = budgets.length === 0 ? 20 : 0;
-    if (budgets.length > 0) {
-        const ok = budgets.filter(b => b.spent <= b.amount).length;
-        budgetScore = (ok / budgets.length) * 30;
-    }
+    // Tracking consistency (0-40 pts): having entries is good
+    const trackingScore = Math.min(40, txMonth.length * 2);
 
-    // Tracking consistency (0-30 pts): having entries is good
-    const trackingScore = Math.min(30, txMonth.length * 1.5);
-
-    return Math.round(Math.min(100, savingsScore + budgetScore + trackingScore));
+    return Math.round(Math.min(100, savingsScore + trackingScore));
 };
 
 export const getHealthLabel = (score) => {
@@ -99,22 +92,12 @@ export const calcMonthComparison = (transactions) => {
 };
 
 // --- ALERTAS INTELIGENTES ---
-export const detectAlerts = (transactions, budgets = []) => {
+export const detectAlerts = (transactions) => {
     const alerts = [];
     const now = new Date();
     const cM = now.getMonth(), cY = now.getFullYear();
     const pM = cM === 0 ? 11 : cM - 1;
     const pY = cM === 0 ? cY - 1 : cY;
-
-    // Budget alerts
-    budgets.forEach(b => {
-        const pct = b.amount > 0 ? (b.spent / b.amount) * 100 : 0;
-        if (pct >= 100) {
-            alerts.push({ type: 'danger', icon: '🚨', text: `Superaste el presupuesto de **${b.category}**: ${b.spent.toFixed(0)}€ / ${b.amount}€` });
-        } else if (pct >= 80) {
-            alerts.push({ type: 'warning', icon: '⚠️', text: `Llevas el ${pct.toFixed(0)}% del presupuesto de **${b.category}** (${b.spent.toFixed(0)}€ / ${b.amount}€)` });
-        }
-    });
 
     // Spending spike detection
     const getMonthExpByCat = (m, y) => {
