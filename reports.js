@@ -1,5 +1,6 @@
 import { callGemini } from "./api.js";
 import { showLoadingOverlay, hideLoadingOverlay } from "./ui.js";
+import { effectiveAmount } from "./analytics.js";
 
 // ============================================================================
 // PLUGIN CHART.JS PARA ETIQUETAS VERTICALES
@@ -116,7 +117,7 @@ export const calculateFuelMetrics = (transactions, startDate, endDate, category 
         const lMatch = desc.match(/(\d+[.,]\d+|\d+)\s*(?:l|litros|litro)/i);
         return {
             date: t.date.toDate(),
-            amount: t.amount,
+            amount: effectiveAmount(t),
             km: kmMatch ? parseInt(kmMatch[1].replace(/\./g, '')) : null,
             liters: lMatch ? parseFloat(lMatch[1].replace(',', '.')) : null,
             description: t.description
@@ -343,14 +344,14 @@ export const generateAiReport = async (transactions) => {
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         const last30Txs = transactions.filter(t => t.date.toDate() >= thirtyDaysAgo);
 
-        const income = last30Txs.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
-        const expenses = last30Txs.filter(t => t.amount < 0).reduce((sum, t) => sum + Math.abs(t.amount), 0);
+        const income = last30Txs.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+        const expenses = last30Txs.filter(t => t.type === 'expense').reduce((sum, t) => sum + effectiveAmount(t), 0);
         const balance = income - expenses;
 
         const byCategory = {};
-        last30Txs.filter(t => t.amount < 0).forEach(t => {
+        last30Txs.filter(t => t.type === 'expense').forEach(t => {
             const cat = t.category || 'Sin categoría';
-            byCategory[cat] = (byCategory[cat] || 0) + Math.abs(t.amount);
+            byCategory[cat] = (byCategory[cat] || 0) + effectiveAmount(t);
         });
 
         const sortedCategories = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5);
@@ -424,13 +425,17 @@ ${getPDFStyles()}
             </tr>
         </thead>
         <tbody>
-            ${last30Txs.slice(-8).reverse().map(t => `
+            ${last30Txs.slice(-8).reverse().map(t => {
+                const isExpense = t.type === 'expense';
+                const amt = isExpense ? effectiveAmount(t) : t.amount;
+                const displayAmt = isExpense ? -amt : amt;
+                return `
                 <tr>
                     <td>${formatDate(t.date.toDate())}</td>
                     <td>${t.description} <small style="display:block; color:#94a3b8; font-size:0.75em">${t.category}</small></td>
-                    <td class="text-right" style="font-weight:700; color:${t.amount >= 0 ? '#10b981' : '#ef4444'}">${formatCurrency(t.amount)}</td>
-                </tr>
-            `).join('')}
+                    <td class="text-right" style="font-weight:700; color:${displayAmt >= 0 ? '#10b981' : '#ef4444'}">${formatCurrency(displayAmt)}</td>
+                </tr>`;
+            }).join('')}
         </tbody>
     </table>
 </div>

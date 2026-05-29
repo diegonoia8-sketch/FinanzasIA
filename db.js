@@ -1,4 +1,4 @@
-import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, query, where, onSnapshot, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, query, where, onSnapshot, serverTimestamp, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 import { db, storage, dbCollections } from "./config.js";
 
@@ -96,6 +96,46 @@ export const updatePayrollIRPF = async (payrollId, newIRPF) => {
     } catch (e) {
         console.error("Error updating IRPF:", e);
         return false;
+    }
+};
+
+// ─── SUBTRANSACTIONS ──────────────────────────────────────────────────────────
+
+export const addSubTransaction = async (parentTxId, subTx) => {
+    try {
+        const ref = doc(db, dbCollections.transactions, parentTxId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) throw new Error("Transaction not found");
+        const data = snap.data();
+        const newSub = {
+            id: crypto.randomUUID(),
+            description: subTx.description || '',
+            amount: parseFloat(subTx.amount) || 0,
+            date: subTx.date || '',
+            notes: subTx.notes || ''
+        };
+        const subTransactions = [...(data.subTransactions || []), newSub];
+        const netAmount = Math.max(0, data.amount - subTransactions.reduce((s, st) => s + st.amount, 0));
+        await updateDoc(ref, { subTransactions, netAmount, updatedAt: serverTimestamp() });
+        return newSub;
+    } catch (e) {
+        console.error("Error adding sub-transaction:", e);
+        throw e;
+    }
+};
+
+export const removeSubTransaction = async (parentTxId, subTxId) => {
+    try {
+        const ref = doc(db, dbCollections.transactions, parentTxId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) throw new Error("Transaction not found");
+        const data = snap.data();
+        const subTransactions = (data.subTransactions || []).filter(st => st.id !== subTxId);
+        const netAmount = Math.max(0, data.amount - subTransactions.reduce((s, st) => s + st.amount, 0));
+        await updateDoc(ref, { subTransactions, netAmount, updatedAt: serverTimestamp() });
+    } catch (e) {
+        console.error("Error removing sub-transaction:", e);
+        throw e;
     }
 };
 

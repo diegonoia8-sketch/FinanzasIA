@@ -104,6 +104,81 @@
     </div>
 </div>
 
+
+<!-- MODAL GESTIÓN DE SUBTRANSACCIONES -->
+<div id="subTransactionModal" class="hidden fixed inset-0 bg-black/50 z-[9998] flex items-center justify-center p-4">
+    <div class="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md animate-scale-in flex flex-col max-h-[90vh]">
+        <div class="flex items-center justify-between mb-4 border-b pb-3">
+            <div>
+                <h2 class="text-base font-black text-gray-800" id="subTxParentTitle">Cargando transacción...</h2>
+                <p class="text-xs text-gray-400">Gestionar reembolsos y gastos compartidos</p>
+            </div>
+            <button id="closeSubTxModalBtn" class="text-gray-400 hover:text-gray-600 font-bold text-lg p-1">✕</button>
+        </div>
+
+        <!-- Resumen de Costes -->
+        <div class="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-xl mb-4 text-center">
+            <div>
+                <p class="text-[10px] text-gray-400 font-bold uppercase">Original</p>
+                <p id="subTxOriginal" class="text-sm font-black text-gray-700">-</p>
+            </div>
+            <div>
+                <p class="text-[10px] text-gray-400 font-bold uppercase">Recuperado</p>
+                <p id="subTxRecovered" class="text-sm font-black text-emerald-600">-</p>
+            </div>
+            <div>
+                <p class="text-[10px] text-gray-400 font-bold uppercase">Coste Neto</p>
+                <p id="subTxNet" class="text-sm font-black text-gray-900">-</p>
+            </div>
+        </div>
+
+        <!-- Barra de Progreso -->
+        <div class="mb-4">
+            <div class="flex justify-between items-center text-xs font-bold text-gray-500 mb-1">
+                <span>Progreso de recuperación</span>
+                <span id="subTxProgressPct">0%</span>
+            </div>
+            <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                <div id="subTxProgressBar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Listado de Subtransacciones -->
+        <div class="flex-1 overflow-y-auto min-h-[150px] max-h-[250px] mb-4 pr-1">
+            <p class="text-xs font-bold text-gray-400 uppercase mb-2">Reembolsos Recibidos</p>
+            <div id="subTxList" class="space-y-1">
+                <!-- Se rellena dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Formulario para Añadir -->
+        <form id="subTxForm" class="border-t pt-4">
+            <p class="text-xs font-bold text-gray-400 uppercase mb-3">Añadir Reembolso</p>
+            <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Concepto</label>
+                    <input type="text" id="subTxDescription" required placeholder="Bizum de..." class="mt-1 w-full rounded-xl border border-gray-100 bg-gray-50 p-2.5 text-xs outline-none focus:border-indigo-400 transition">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Importe (€)</label>
+                    <input type="number" id="subTxAmount" required step="0.01" min="0.01" placeholder="0.00" class="mt-1 w-full rounded-xl border border-gray-100 bg-gray-50 p-2.5 text-xs outline-none focus:border-indigo-400 transition">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Fecha</label>
+                    <input type="date" id="subTxDate" required class="mt-1 w-full rounded-xl border border-gray-100 bg-gray-50 p-2.5 text-xs outline-none focus:border-indigo-400 transition">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Notas (Opcional)</label>
+                    <input type="text" id="subTxNotes" placeholder="Detalles..." class="mt-1 w-full rounded-xl border border-gray-100 bg-gray-50 p-2.5 text-xs outline-none focus:border-indigo-400 transition">
+                </div>
+            </div>
+            <button type="submit" class="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-xs hover:bg-indigo-700 transition shadow-md shadow-indigo-100">+ Añadir Reembolso</button>
+        </form>
+    </div>
+</div>
+
 <!-- MAIN APP -->
 <div id="mainApp" class="hidden flex flex-col flex-grow">
 

@@ -3,6 +3,9 @@
  * Incluye: Income/Expense, Categorías, Cash Flow, Tendencias, Heatmap
  */
 
+import { effectiveAmount } from './analytics.js';
+
+
 let incomeExpenseChart, categoryAnalysisChart, cashFlowChart, tendenciasChart, historyCategoryChart;
 
 const centerTextPlugin = {
@@ -59,7 +62,7 @@ export const renderIncomeExpenseChart = (transactions) => {
         return d && d.getMonth() === month && d.getFullYear() === year && t.category !== 'No Contabilizados';
     });
     const income = txs.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const expense = txs.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const expense = txs.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
 
     if (incomeExpenseChart) incomeExpenseChart.destroy();
     incomeExpenseChart = new Chart(ctx, {
@@ -85,7 +88,7 @@ export const renderCategoryAnalysisChart = (transactions, type = 'expense', star
     let filtered = transactions.filter(t => t.type === type && !['Transferencia','Saldo Inicial','No Contabilizados'].includes(t.category));
     if (startDate) { const s = new Date(startDate); s.setHours(0,0,0,0); filtered = filtered.filter(t => t.date?.toDate?.() >= s); }
     if (endDate) { const e = new Date(endDate); e.setHours(23,59,59,999); filtered = filtered.filter(t => t.date?.toDate?.() <= e); }
-    const categories = filtered.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc; }, {});
+    const categories = filtered.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + (type === 'expense' ? effectiveAmount(t) : t.amount); return acc; }, {});
 
     if (categoryAnalysisChart) categoryAnalysisChart.destroy();
     if (Object.keys(categories).length === 0) {
@@ -117,7 +120,7 @@ export const renderHistoryCategoryChart = (transactions, type = 'expense') => {
     const ctx = document.getElementById('historyCategoryChart');
     if (!ctx) return;
     const filtered = transactions.filter(t => t.type === type && !['Transferencia','Saldo Inicial','No Contabilizados'].includes(t.category));
-    const categories = filtered.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc; }, {});
+    const categories = filtered.reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + (type === 'expense' ? effectiveAmount(t) : t.amount); return acc; }, {});
 
     if (historyCategoryChart) historyCategoryChart.destroy();
     if (Object.keys(categories).length === 0) {
@@ -162,7 +165,7 @@ export const renderCashFlowChart = (transactions) => {
         const key = `${d.getFullYear()}-${d.getMonth()}`;
         if (monthlyData[key]) {
             if (t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)) monthlyData[key].income += t.amount;
-            else if (t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)) monthlyData[key].expense += t.amount;
+            else if (t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)) monthlyData[key].expense += effectiveAmount(t);
         }
     });
     const sortedKeys = Object.keys(monthlyData).sort();

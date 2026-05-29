@@ -3,6 +3,8 @@
  * OCR, categorización automática, consejo diario, chat con memoria
  */
 
+import { effectiveAmount } from './analytics.js';
+
 let chatHistory = []; // Session memory for chat
 
 export async function callGemini(systemPrompt, userPrompt, base64Image = null) {
@@ -115,10 +117,11 @@ Si te preguntan por transacciones específicas (ej: "cuánto gasté en X", "en q
                     });
                 }
                 
-                const totalAmount = filtered.reduce((acc, t) => acc + t.amount, 0);
+                const totalAmount = filtered.reduce((acc, t) => acc + (t.type === 'expense' ? effectiveAmount(t) : t.amount), 0);
                 const simplifiedList = filtered.map(t => {
                     const d = t.date?.toDate?.() ? t.date.toDate().toISOString().split('T')[0] : 'N/A';
-                    return { fecha: d, concepto: t.description, importe: t.amount, categoria: t.category };
+                    const netAmt = t.type === 'expense' ? effectiveAmount(t) : t.amount;
+                    return { fecha: d, concepto: t.description, importe: netAmt, importeBruto: t.amount, categoria: t.category };
                 });
 
                 chatHistory.push({
@@ -223,7 +226,7 @@ export const buildFinancialContext = (transactions) => {
         return d && d.getMonth() === month && d.getFullYear() === year;
     });
     const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia'].includes(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
     
     // 2. Account balances
     const accounts = {};
@@ -240,7 +243,7 @@ export const buildFinancialContext = (transactions) => {
         const key = `${d.getFullYear()}-${d.getMonth()}`;
         if (!monthsData[key]) monthsData[key] = { income: 0, expense: 0 };
         if (t.type === 'income' && !['Transferencia','Saldo Inicial'].includes(t.category)) monthsData[key].income += t.amount;
-        if (t.type === 'expense' && !['Transferencia'].includes(t.category)) monthsData[key].expense += t.amount;
+        if (t.type === 'expense' && !['Transferencia'].includes(t.category)) monthsData[key].expense += effectiveAmount(t);
     });
     const numMonths = Object.keys(monthsData).length || 1;
     const avgIncome = Object.values(monthsData).reduce((s, m) => s + m.income, 0) / numMonths;

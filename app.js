@@ -2,13 +2,13 @@ import { auth, db, dbCollections } from "./config.js";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { showTab, populateSelectOptions, toggleBalancesVisibility, showLoadingOverlay, hideLoadingOverlay } from "./ui.js";
-import { saveTransaction, deleteDocument, addSetting, saveRecurring, savePayroll, updatePayrollIRPF } from "./db.js";
+import { saveTransaction, deleteDocument, addSetting, saveRecurring, savePayroll, updatePayrollIRPF, addSubTransaction, removeSubTransaction } from "./db.js";
 import { renderIncomeExpenseChart, renderCategoryAnalysisChart, renderCashFlowChart, renderTendenciasChart, renderHeatmap, renderHistoryCategoryChart } from "./charts.js";
 import { callGemini, callGeminiChat, resetChatHistory, categorizarConcepto, getConsejoDelDia, buildFinancialContext, compressImage, analizarNomina } from "./api.js";
 import { generateAiReport, generateExlabesaReport, generateFuelReport } from "./reports.js";
 import { showToast, showSaveToast, showDeleteToast, showErrorToast, showInfoToast } from "./toast.js";
 import { setupRecurringListener, renderRecurringList, renderUpcomingPayments, checkAndRegisterRecurring } from "./features.js";
-import { calcHealthScore, getHealthLabel, calcEndOfMonthPrediction, calcMonthComparison, detectAlerts, calcHeatmapData, calcTendencias } from "./analytics.js";
+import { calcHealthScore, getHealthLabel, calcEndOfMonthPrediction, calcMonthComparison, detectAlerts, calcHeatmapData, calcTendencias, effectiveAmount } from "./analytics.js";
 import { parseCSVFile, guessCategory } from "./csv-importer.js";
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -58,6 +58,7 @@ const setupRealtimeListeners = (uid) => {
     // Transactions
     onSnapshot(query(collection(db, dbCollections.transactions), where("userId", "==", uid)), (snapshot) => {
         allUserTransactions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        document.dispatchEvent(new Event('transactionsUpdated'));
         renderDashboard();
         renderPayrollsTable();
         updatePayrollStats();
@@ -336,7 +337,7 @@ const renderAccountsSummary = () => {
     const accounts = {};
     allUserTransactions.forEach(t => {
         if (!accounts[t.account]) accounts[t.account] = 0;
-        t.type === 'income' ? accounts[t.account] += t.amount : accounts[t.account] -= t.amount;
+        t.type === 'income' ? accounts[t.account] += t.amount : accounts[t.account] -= effectiveAmount(t);
     });
     let html = '', total = 0;
     for (const acc in accounts) {
@@ -356,13 +357,33 @@ const renderTransactionsTable = (txs) => {
     tbody.innerHTML = txs.map(t => {
         const dateStr = t.date ? new Date(t.date.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '–';
         const rowClass = compactMode ? 'compact-row' : '';
+        const subTxs = t.subTransactions || [];
+        const hasSubTxs = subTxs.length > 0;
+        const netAmt = effectiveAmount(t);
+        const recovered = t.amount - netAmt;
+
+        // Amount display: show net if there are subtransactions
+        let amountDisplay;
+        if (t.type === 'expense' && hasSubTxs) {
+            amountDisplay = `
+                <span class="line-through text-gray-300 text-xs mr-1">${t.amount?.toFixed(2)}€</span>
+                <span class="text-emerald-600 font-black">${netAmt.toFixed(2)}€</span>`;
+        } else {
+            amountDisplay = `${t.type === 'income' ? '+' : '-'}${t.amount?.toFixed(2)}€`;
+        }
+
+        const subtxBadge = hasSubTxs
+            ? `<span class="ml-1 inline-flex items-center gap-0.5 text-[9px] bg-violet-100 text-violet-600 font-black px-1.5 py-0.5 rounded-full" title="${subTxs.length} reembolso(s) · recuperado ${recovered.toFixed(2)}€">↩ ${subTxs.length}</span>`
+            : '';
+
         return `<tr class="${rowClass} border-b border-gray-50 hover:bg-gray-50/50 transition">
             <td class="px-4 py-3 text-xs text-gray-500">${dateStr}</td>
-            <td class="px-4 py-3 text-sm font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">${t.type === 'income' ? '+' : '-'}${t.amount?.toFixed(2)}€</td>
-            <td class="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs truncate">${t.description || '–'} ${t.receiptImage ? '<span title="Tiene ticket">📎</span>' : ''} ${(t.tags || []).map(tag => `<span class="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 rounded-full font-bold">${tag}</span>`).join('')}</td>
+            <td class="px-4 py-3 text-sm font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">${amountDisplay}</td>
+            <td class="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs truncate">${t.description || '–'} ${subtxBadge} ${t.receiptImage ? '<span title="Tiene ticket">📎</span>' : ''} ${(t.tags || []).map(tag => `<span class="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 rounded-full font-bold">${tag}</span>`).join('')}</td>
             <td class="px-4 py-3 hidden md:table-cell"><span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">${t.category || '–'}</span></td>
             <td class="px-4 py-3 hidden md:table-cell text-xs text-gray-400">${t.account || '–'}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button class="subtx-btn text-xs font-black text-violet-400 hover:text-violet-600 mr-2 transition" data-id="${t.id}" title="Gestionar reembolsos">↩</button>
                 <button class="edit-btn text-xs font-black text-indigo-400 hover:text-indigo-600 mr-2 transition" data-id="${t.id}">Editar</button>
                 <button class="delete-btn text-xs font-black text-gray-300 hover:text-red-500 transition" data-id="${t.id}">✕</button>
             </td>
@@ -370,6 +391,7 @@ const renderTransactionsTable = (txs) => {
     }).join('');
     tbody.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async e => { await deleteDocument(dbCollections.transactions, e.currentTarget.dataset.id); showDeleteToast(); }));
     tbody.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', e => editTransaction(e.currentTarget.dataset.id)));
+    tbody.querySelectorAll('.subtx-btn').forEach(btn => btn.addEventListener('click', e => openSubTransactionModal(e.currentTarget.dataset.id)));
 };
 
 const editTransaction = (id) => {
@@ -626,7 +648,7 @@ document.getElementById('calculatePastBalanceBtn').addEventListener('click', () 
     const accounts = {};
     allUserTransactions.filter(t => t.date?.toDate?.() <= target && t.category !== '').forEach(t => {
         if (!accounts[t.account]) accounts[t.account] = 0;
-        t.type === 'income' ? accounts[t.account] += t.amount : accounts[t.account] -= t.amount;
+        t.type === 'income' ? accounts[t.account] += t.amount : accounts[t.account] -= effectiveAmount(t);
     });
     let html = '', total = 0;
     for (const acc in accounts) { total += accounts[acc]; html += `<div class="flex justify-between items-center py-1"><span class="text-sm font-medium">${acc}</span><span class="balance-value text-sm font-bold ${accounts[acc] >= 0 ? 'text-emerald-600' : 'text-red-500'}">${accounts[acc].toFixed(2)} €</span></div>`; }
@@ -1721,6 +1743,119 @@ document.getElementById('cancelInvEditBtn')?.addEventListener('click', () => {
 document.getElementById('invFilterConcept')?.addEventListener('input', renderInvestments);
 document.getElementById('invFilterYear')?.addEventListener('change', renderInvestments);
 document.getElementById('invFilterMonth')?.addEventListener('change', renderInvestments);
+
+
+// ─── SUBTRANSACTIONS MODAL ────────────────────────────────────────────────────
+let currentSubTxParentId = null;
+
+const openSubTransactionModal = (parentTxId) => {
+    currentSubTxParentId = parentTxId;
+    renderSubTransactionModal();
+    document.getElementById('subTransactionModal').classList.remove('hidden');
+    // Pre-fill today's date in the form
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    const dateInput = document.getElementById('subTxDate');
+    if (dateInput) dateInput.value = d.toISOString().split('T')[0];
+};
+
+const renderSubTransactionModal = () => {
+    const t = allUserTransactions.find(x => x.id === currentSubTxParentId);
+    if (!t) return;
+
+    const subTxs = t.subTransactions || [];
+    const netAmt = effectiveAmount(t);
+    const recovered = t.amount - netAmt;
+    const pct = t.amount > 0 ? Math.min(100, (recovered / t.amount) * 100) : 0;
+
+    document.getElementById('subTxParentTitle').textContent = t.description || 'Transacción';
+    document.getElementById('subTxOriginal').textContent = `${t.amount?.toFixed(2)}€`;
+    document.getElementById('subTxRecovered').textContent = `${recovered.toFixed(2)}€`;
+    document.getElementById('subTxNet').textContent = `${netAmt.toFixed(2)}€`;
+    const bar = document.getElementById('subTxProgressBar');
+    if (bar) bar.style.width = `${pct}%`;
+    document.getElementById('subTxProgressPct').textContent = `${pct.toFixed(0)}% recuperado`;
+
+    const list = document.getElementById('subTxList');
+    if (!subTxs.length) {
+        list.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">Sin reembolsos aún</p>';
+    } else {
+        list.innerHTML = subTxs.map(st => `
+            <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-gray-800 truncate">${st.description || 'Reembolso'}</p>
+                    <p class="text-[10px] text-gray-400">${st.date || ''} ${st.notes ? '· ' + st.notes : ''}</p>
+                </div>
+                <span class="text-sm font-black text-emerald-600 mx-3 shrink-0">+${st.amount?.toFixed(2)}€</span>
+                <button class="remove-subtx-btn text-gray-300 hover:text-red-500 transition text-xs font-black shrink-0" data-subtx-id="${st.id}">✕</button>
+            </div>`).join('');
+        list.querySelectorAll('.remove-subtx-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const subTxId = e.currentTarget.dataset.subtxId;
+                try {
+                    await removeSubTransaction(currentSubTxParentId, subTxId);
+                    showDeleteToast();
+                    // Modal updates automatically via Firestore snapshot
+                } catch (err) {
+                    showErrorToast('Error al eliminar reembolso');
+                }
+            });
+        });
+    }
+};
+
+// Re-render modal content when transactions update (Firestore snapshot)
+const refreshSubTxModalIfOpen = () => {
+    const modal = document.getElementById('subTransactionModal');
+    if (!modal || modal.classList.contains('hidden') || !currentSubTxParentId) return;
+    renderSubTransactionModal();
+};
+
+// Hook into the existing snapshot listener by patching renderDashboard
+const _originalRenderDashboard = window._renderDashboard;
+const _patchedListener = () => { refreshSubTxModalIfOpen(); };
+// We call refreshSubTxModalIfOpen after each snapshot via the existing listener chain
+const originalSetupListeners = setupRealtimeListeners;
+
+document.getElementById('subTxForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const desc = document.getElementById('subTxDescription').value.trim();
+    const amount = parseFloat(document.getElementById('subTxAmount').value);
+    const date = document.getElementById('subTxDate').value;
+    const notes = document.getElementById('subTxNotes').value.trim();
+
+    if (!desc || !amount || amount <= 0) return showErrorToast('Rellena concepto e importe');
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+        await addSubTransaction(currentSubTxParentId, { description: desc, amount, date, notes });
+        e.target.reset();
+        // Re-fill today's date
+        const d = new Date();
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        document.getElementById('subTxDate').value = d.toISOString().split('T')[0];
+        showSaveToast('Reembolso');
+    } catch (err) {
+        showErrorToast('Error al guardar reembolso');
+    } finally {
+        btn.disabled = false; btn.textContent = '+ Añadir Reembolso';
+    }
+});
+
+document.getElementById('closeSubTxModalBtn')?.addEventListener('click', () => {
+    document.getElementById('subTransactionModal').classList.add('hidden');
+    currentSubTxParentId = null;
+});
+
+// Close on backdrop click
+document.getElementById('subTransactionModal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('subTransactionModal')) {
+        document.getElementById('subTransactionModal').classList.add('hidden');
+        currentSubTxParentId = null;
+    }
+});
+document.addEventListener('transactionsUpdated', refreshSubTxModalIfOpen);
+
 
 
 

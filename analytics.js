@@ -3,6 +3,17 @@
  * Health Score, Predicciones, Comparativas, Alertas
  */
 
+// ─── HELPER: IMPORTE EFECTIVO ─────────────────────────────────────────────────
+// Para gastos con subtransacciones (reembolsos), devuelve el coste neto.
+// Para todo lo demás, devuelve el importe original.
+export const effectiveAmount = (t) => {
+    if (t.type === 'expense' && t.subTransactions?.length > 0) {
+        const recovered = t.subTransactions.reduce((s, st) => s + (st.amount || 0), 0);
+        return Math.max(0, t.amount - recovered);
+    }
+    return t.amount;
+};
+
 // --- HEALTH SCORE (0-100) ---
 export const calcHealthScore = (transactions) => {
     const now = new Date();
@@ -12,7 +23,7 @@ export const calcHealthScore = (transactions) => {
         return d && d.getMonth() === month && d.getFullYear() === year;
     });
     const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
 
     // Savings rate (0-60 pts)
     const savingsRate = income > 0 ? Math.max(0, (income - expense) / income) : 0;
@@ -43,7 +54,7 @@ export const calcEndOfMonthPrediction = (transactions) => {
         return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
     const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
     const dailyRate = dayOfMonth > 0 ? expense / dayOfMonth : 0;
     const projectedExpense = expense + (dailyRate * daysLeft);
     const projectedSavings = income - projectedExpense;
@@ -63,7 +74,7 @@ export const calcMonthComparison = (transactions) => {
         return d && d.getMonth() === m && d.getFullYear() === y;
     });
 
-    const sumExpense = (txs) => txs.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const sumExpense = (txs) => txs.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
     const sumIncome = (txs) => txs.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
 
     const cTxs = filterMonth(cM, cY);
@@ -77,7 +88,7 @@ export const calcMonthComparison = (transactions) => {
     const catMap = {};
     const processTxs = (txs, field) => txs.filter(t => t.type === 'expense').forEach(t => {
         if (!catMap[t.category]) catMap[t.category] = { current: 0, prev: 0 };
-        catMap[t.category][field] += t.amount;
+        catMap[t.category][field] += effectiveAmount(t);
     });
     processTxs(cTxs, 'current');
     processTxs(pTxs, 'prev');
@@ -105,7 +116,7 @@ export const detectAlerts = (transactions) => {
         transactions.filter(t => {
             const d = t.date?.toDate?.();
             return d && d.getMonth() === m && d.getFullYear() === y && t.type === 'expense' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category);
-        }).forEach(t => { res[t.category] = (res[t.category] || 0) + t.amount; });
+        }).forEach(t => { res[t.category] = (res[t.category] || 0) + effectiveAmount(t); });
         return res;
     };
 
@@ -136,7 +147,7 @@ export const calcHeatmapData = (transactions) => {
     }).forEach(t => {
         const d = t.date.toDate();
         const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        data[key] = (data[key] || 0) + t.amount;
+        data[key] = (data[key] || 0) + effectiveAmount(t);
     });
 
     return data;
