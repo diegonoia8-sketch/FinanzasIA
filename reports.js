@@ -479,8 +479,44 @@ export const generateExlabesaReport = async (transactions, startDate, endDate) =
 
         const total = txs.reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
-        const htmlContent = `
-${getPDFStyles()}
+        // Build ticket images HTML — only if there are receipts
+        const txsWithReceipt = txs.filter(t => t.receiptImage);
+        const ticketSection = txsWithReceipt.length > 0 ? `
+<div style="page-break-before: always; margin-top: 2rem;">
+    <h2 style="font-size: 1rem; font-weight: 800; color: #1e293b; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem;">
+        Anexo: Fotos de Tickets
+        <span style="flex: 1; height: 1px; background: #e2e8f0;"></span>
+    </h2>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5cm; margin-top: 1rem;">
+        ${txsWithReceipt.map(t => `
+            <div style="border: 1px solid #e2e8f0; padding: 10px; border-radius: 12px; text-align: center; page-break-inside: avoid;">
+                <p style="font-size: 7pt; margin-bottom: 5px; font-weight: 700; color:#64748b;">${formatDate(t.date.toDate())} - ${t.description.substring(0,25)}</p>
+                <img src="${t.receiptImage}" style="max-width: 100%; max-height: 8cm; object-fit: contain; border-radius: 8px;" crossorigin="anonymous">
+            </div>
+        `).join('')}
+    </div>
+</div>
+` : '';
+
+        const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Informe Dietas EXLABESA</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
+    ${getPDFStyles()}
+    <style>
+        body { font-family: 'Inter', sans-serif; padding: 0; margin: 0; }
+        img { max-width: 100%; height: auto; }
+        @media print {
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            img { display: inline-block !important; visibility: visible !important; max-width: 100% !important; page-break-inside: avoid !important; }
+        }
+    </style>
+</head>
+<body>
+
 <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
     <h1>Informe Dietas EXLABESA</h1>
     <div class="subtitle">Liquidación de gastos profesionales</div>
@@ -528,35 +564,63 @@ ${getPDFStyles()}
     </table>
 </div>
 
-${txs.some(t => t.receiptImage) ? `
-<div class="section" style="page-break-before: always;">
-    <div class="section-title">Anexo: Fotos de Tickets</div>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5cm; margin-top: 1rem;">
-        ${txs.filter(t => t.receiptImage).map(t => `
-            <div style="border: 1px solid #e2e8f0; padding: 10px; border-radius: 12px; text-align: center;">
-                <p style="font-size: 7pt; margin-bottom: 5px; font-weight: 700; color:#64748b;">${formatDate(t.date.toDate())} - ${t.description.substring(0,25)}</p>
-                <img src="${t.receiptImage}" style="max-width: 100%; max-height: 8cm; object-fit: contain; border-radius: 8px;">
-            </div>
-        `).join('')}
-    </div>
-</div>
-` : ''}
+${ticketSection}
 
 <div class="footer">
     Documento oficial generado el ${formatDate(new Date())} por Oink
 </div>
-`;
 
-        const container = document.getElementById('exlabesaPdfContainer');
-        container.innerHTML = htmlContent;
-        preparePrintView('exlabesaPdfContainer');
-
-        waitForRender(() => {
+<script>
+    // Wait for ALL images to fully load before enabling print
+    function waitForImages() {
+        const images = document.querySelectorAll('img');
+        if (images.length === 0) {
             window.print();
-            setTimeout(cleanupPrintView, 800);
-        }, 1200);
+            return;
+        }
+        let loaded = 0;
+        const total = images.length;
+        const onReady = () => {
+            loaded++;
+            if (loaded >= total) {
+                setTimeout(() => window.print(), 500);
+            }
+        };
+        images.forEach(img => {
+            if (img.complete && img.naturalWidth > 0) {
+                onReady();
+            } else {
+                img.onload = onReady;
+                img.onerror = onReady;
+            }
+        });
+        // Fallback: print after 8 seconds no matter what
+        setTimeout(() => window.print(), 8000);
+    }
+    // Start once DOM + fonts are ready
+    document.fonts?.ready?.then(waitForImages) || window.addEventListener('load', waitForImages);
+</script>
 
-        return txs.filter(t => t.receiptImage).map(t => t.id);
+</body>
+</html>`;
+
+        // Open in a new window — works on iOS PWA, Android, and desktop
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(fullHtml);
+            printWindow.document.close();
+        } else {
+            // Fallback: if popup is blocked, use the old inline method
+            const container = document.getElementById('exlabesaPdfContainer');
+            container.innerHTML = fullHtml;
+            preparePrintView('exlabesaPdfContainer');
+            waitForRender(() => {
+                window.print();
+                setTimeout(cleanupPrintView, 800);
+            }, 3000);
+        }
+
+        return txsWithReceipt.map(t => t.id);
 
     } catch (err) {
         alert("Error: " + err.message);

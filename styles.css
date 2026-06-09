@@ -254,6 +254,15 @@ body {
         color: black !important; 
         visibility: visible !important; 
     }
+
+    /* Force images to render in print */
+    .print-visible img {
+        display: inline-block !important;
+        visibility: visible !important;
+        max-width: 100% !important;
+        height: auto !important;
+        page-break-inside: avoid !important;
+    }
     
     .print-visible table { 
         width: 100% !important; 
