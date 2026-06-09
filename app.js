@@ -20,6 +20,7 @@ let userCategories = [];
 let userAccounts = [];
 let userAccountingBooks = [];
 let currentScannedImage = null;
+let pendingExlabesaPrintTxIds = null;
 
 let recurringUnsubscribe = null;
 let compactMode = false;
@@ -869,21 +870,7 @@ document.getElementById('generateExlabesaBtn').addEventListener('click', async (
     document.getElementById('exlabesaModal').classList.add('hidden');
     const txIds = await generateExlabesaReport(allUserTransactions, start, end);
     if (txIds && txIds.length > 0) {
-        setTimeout(async () => {
-            if (confirm(`¿Quieres borrar las fotos de los ${txIds.length} tickets ya impresos de la base de datos?`)) {
-                showLoadingOverlay();
-                try {
-                    for (const id of txIds) {
-                        await updateDoc(doc(db, dbCollections.transactions, id), { receiptImage: null });
-                    }
-                    showToast('Tickets borrados correctamente', 'success');
-                } catch (e) {
-                    showErrorToast('Error al borrar tickets');
-                } finally {
-                    hideLoadingOverlay();
-                }
-            }
-        }, 3000);
+        pendingExlabesaPrintTxIds = txIds;
     }
 });
 
@@ -1869,6 +1856,53 @@ document.getElementById('subTransactionModal')?.addEventListener('click', (e) =>
     }
 });
 document.addEventListener('transactionsUpdated', refreshSubTxModalIfOpen);
+
+// Event listeners to handle receipt cleanup after printing
+window.addEventListener('message', async (event) => {
+    if (event.data && event.data.type === 'deleteReceipts') {
+        pendingExlabesaPrintTxIds = null; // Clear fallback to avoid double prompt
+        const txIds = event.data.ids;
+        if (txIds && txIds.length > 0) {
+            showLoadingOverlay();
+            try {
+                for (const id of txIds) {
+                    await updateDoc(doc(db, dbCollections.transactions, id), { receiptImage: null });
+                }
+                showToast('Fotos de tickets borradas correctamente', 'success');
+            } catch (e) {
+                showErrorToast('Error al borrar fotos');
+            } finally {
+                hideLoadingOverlay();
+            }
+        }
+    } else if (event.data && event.data.type === 'cancelDeleteReceipts') {
+        pendingExlabesaPrintTxIds = null; // Clear fallback
+    }
+});
+
+// Fallback focus handler if user closes window/tab natively instead of using "Volver a la App" button
+window.addEventListener('focus', () => {
+    if (pendingExlabesaPrintTxIds && pendingExlabesaPrintTxIds.length > 0) {
+        const ids = pendingExlabesaPrintTxIds;
+        pendingExlabesaPrintTxIds = null; // Clear immediately to prevent double prompts
+        setTimeout(async () => {
+            if (confirm(`¿Quieres borrar las fotos de los ${ids.length} tickets de la base de datos?`)) {
+                showLoadingOverlay();
+                try {
+                    for (const id of ids) {
+                        await updateDoc(doc(db, dbCollections.transactions, id), { receiptImage: null });
+                    }
+                    showToast('Fotos de tickets borradas correctamente', 'success');
+                } catch (e) {
+                    showErrorToast('Error al borrar fotos');
+                } finally {
+                    hideLoadingOverlay();
+                }
+            }
+        }, 1000);
+    }
+});
+
 
 
 

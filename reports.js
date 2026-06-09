@@ -507,15 +507,66 @@ export const generateExlabesaReport = async (transactions, startDate, endDate) =
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
     ${getPDFStyles()}
     <style>
-        body { font-family: 'Inter', sans-serif; padding: 0; margin: 0; }
+        body { font-family: 'Inter', sans-serif; padding: 0; margin: 0; padding-top: 60px; }
         img { max-width: 100%; height: auto; }
         @media print {
-            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; padding-top: 0 !important; }
             img { display: inline-block !important; visibility: visible !important; max-width: 100% !important; page-break-inside: avoid !important; }
+            .no-print { display: none !important; }
+        }
+        .no-print {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #0f172a;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            z-index: 99999;
+            font-family: 'Inter', sans-serif;
+        }
+        .no-print button {
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-volver {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-volver:hover {
+            background: #dc2626;
+        }
+        .btn-print {
+            background: #10b981;
+            color: white;
+            margin-right: 8px;
+        }
+        .btn-print:hover {
+            background: #059669;
         }
     </style>
 </head>
 <body>
+
+<div class="no-print">
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="background: #10b981; width: 8px; height: 8px; border-radius: 50%;"></span>
+        <span style="font-weight: 700; font-size: 14px; letter-spacing: -0.025em;">REPORTE EXLABESA</span>
+    </div>
+    <div style="display: flex;">
+        <button class="btn-print" onclick="window.print()">🖨️ Imprimir de nuevo</button>
+        <button class="btn-volver" id="btnVolver">❌ Volver a la App</button>
+    </div>
+</div>
 
 <div class="header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
     <h1>Informe Dietas EXLABESA</h1>
@@ -571,6 +622,23 @@ ${ticketSection}
 </div>
 
 <script>
+    const txIds = ${JSON.stringify(txsWithReceipt.map(t => t.id))};
+
+    document.getElementById('btnVolver').onclick = function() {
+        if (txIds && txIds.length > 0) {
+            if (confirm("¿Quieres borrar las fotos de los tickets impresos de la base de datos?")) {
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage({ type: 'deleteReceipts', ids: txIds }, '*');
+                }
+            } else {
+                if (window.opener && !window.opener.closed) {
+                    window.opener.postMessage({ type: 'cancelDeleteReceipts' }, '*');
+                }
+            }
+        }
+        window.close();
+    };
+
     // Wait for ALL images to fully load before enabling print
     function waitForImages() {
         const images = document.querySelectorAll('img');
