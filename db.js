@@ -1,51 +1,20 @@
 import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, getDoc, getDocs, query, where, onSnapshot, serverTimestamp, orderBy, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
-import { db, storage, dbCollections } from "./config.js";
-
-let pendingUploadsCount = 0;
-
-// Warning if the user tries to exit the PWA/Browser while an upload is in progress
-window.addEventListener('beforeunload', (e) => {
-    if (pendingUploadsCount > 0) {
-        e.preventDefault();
-        e.returnValue = 'Hay subidas de tickets en progreso en segundo plano. Si sales ahora, podrían no guardarse las imágenes.';
-        return e.returnValue;
-    }
-});
-
-const uploadImageInBackground = async (userId, docId, base64Image) => {
-    pendingUploadsCount++;
-    try {
-        const storageRef = ref(storage, `receipts/${userId}/${Date.now()}.jpg`);
-        await uploadString(storageRef, base64Image, 'data_url');
-        const receiptImage = await getDownloadURL(storageRef);
-        await updateDoc(doc(db, dbCollections.transactions, docId), { receiptImage, updatedAt: serverTimestamp() });
-        console.log(`[Background Upload] Imagen subida y asociada a la transacción ${docId}`);
-    } catch (e) {
-        console.error(`[Background Upload] Error al subir imagen para transacción ${docId}:`, e);
-    } finally {
-        pendingUploadsCount--;
-    }
-};
+import { db, dbCollections } from "./config.js";
 
 export const saveTransaction = async (userId, transactionId, data, base64Image = null) => {
     try {
         const docData = { ...data, userId, updatedAt: serverTimestamp() };
-        let docRef;
 
-        if (transactionId) {
-            docRef = doc(db, dbCollections.transactions, transactionId);
-            await updateDoc(docRef, docData);
-        } else {
-            docData.createdAt = serverTimestamp();
-            docRef = await addDoc(collection(db, dbCollections.transactions), docData);
+        // Guardamos el ticket directamente en Firestore como Base64 (igual que las nóminas)
+        if (base64Image) {
+            docData.receiptImage = base64Image;
         }
 
-        if (base64Image) {
-            const docId = transactionId || docRef.id;
-            uploadImageInBackground(userId, docId, base64Image).catch(err => {
-                console.error("Error al iniciar subida en segundo plano:", err);
-            });
+        if (transactionId) {
+            await updateDoc(doc(db, dbCollections.transactions, transactionId), docData);
+        } else {
+            docData.createdAt = serverTimestamp();
+            await addDoc(collection(db, dbCollections.transactions), docData);
         }
 
         return { status: transactionId ? "updated" : "created" };
