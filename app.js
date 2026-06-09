@@ -539,8 +539,9 @@ document.getElementById('transactionForm').addEventListener('submit', async (e) 
         const txId = document.getElementById('transactionId').value;
         const category = document.getElementById('category').value;
 
-        // Only save image if category is EXLABESA
-        const imageToSave = category === 'EXLABESA' ? currentScannedImage : null;
+        // Only save image if category is EXLABESA (case-insensitive and trimmed)
+        const isExlabesa = category && category.trim().toUpperCase() === 'EXLABESA';
+        const imageToSave = isExlabesa ? currentScannedImage : null;
 
         await saveTransaction(userId, txId, data, imageToSave);
         resetTransactionForm(); currentScannedImage = null;
@@ -687,7 +688,18 @@ document.getElementById('receiptInput').addEventListener('change', async (e) => 
     const originalText = scanBtnText.textContent;
     scanBtnText.textContent = 'Comprimiendo...';
 
+    const submitBtn = document.getElementById('submitBtn');
+    const originalSubmitText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Procesando ticket...';
+
     const reader = new FileReader();
+    reader.onerror = () => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalSubmitText;
+        scanBtnText.textContent = originalText;
+        showErrorToast('Error al leer el archivo');
+    };
     reader.onload = async (rx) => {
         try {
             // Optimized compression for faster transmission
@@ -718,6 +730,8 @@ document.getElementById('receiptInput').addEventListener('change', async (e) => 
             showErrorToast('Error al analizar ticket');
         } finally {
             scanBtnText.textContent = originalText;
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalSubmitText;
         }
     };
     reader.readAsDataURL(file);

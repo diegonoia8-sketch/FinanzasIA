@@ -2,7 +2,19 @@ import { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, getDoc, getDocs,
 import { ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 import { db, storage, dbCollections } from "./config.js";
 
+let pendingUploadsCount = 0;
+
+// Warning if the user tries to exit the PWA/Browser while an upload is in progress
+window.addEventListener('beforeunload', (e) => {
+    if (pendingUploadsCount > 0) {
+        e.preventDefault();
+        e.returnValue = 'Hay subidas de tickets en progreso en segundo plano. Si sales ahora, podrían no guardarse las imágenes.';
+        return e.returnValue;
+    }
+});
+
 const uploadImageInBackground = async (userId, docId, base64Image) => {
+    pendingUploadsCount++;
     try {
         const storageRef = ref(storage, `receipts/${userId}/${Date.now()}.jpg`);
         await uploadString(storageRef, base64Image, 'data_url');
@@ -11,6 +23,8 @@ const uploadImageInBackground = async (userId, docId, base64Image) => {
         console.log(`[Background Upload] Imagen subida y asociada a la transacción ${docId}`);
     } catch (e) {
         console.error(`[Background Upload] Error al subir imagen para transacción ${docId}:`, e);
+    } finally {
+        pendingUploadsCount--;
     }
 };
 

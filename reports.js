@@ -474,7 +474,7 @@ export const generateExlabesaReport = async (transactions, startDate, endDate) =
 
         const txs = transactions.filter(t => {
             const d = t.date?.toDate?.();
-            return d && d >= s && d <= e && t.category === 'EXLABESA';
+            return d && d >= s && d <= e && t.category?.trim().toUpperCase() === 'EXLABESA';
         }).sort((a, b) => a.date.toDate() - b.date.toDate());
 
         const total = txs.reduce((sum, t) => sum + Math.abs(t.amount), 0);
