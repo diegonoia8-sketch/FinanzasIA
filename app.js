@@ -691,7 +691,7 @@ document.getElementById('receiptInput').addEventListener('change', async (e) => 
     reader.onload = async (rx) => {
         try {
             // Optimized compression for faster transmission
-            const compressed = await compressImage(rx.target.result, 1200, 0.8);
+            const compressed = await compressImage(rx.target.result, 800, 0.6);
             currentScannedImage = compressed;
             document.getElementById('receiptPreview').src = compressed;
             document.getElementById('receiptPreviewContainer').classList.remove('hidden');
