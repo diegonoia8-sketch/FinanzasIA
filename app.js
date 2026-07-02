@@ -2,7 +2,7 @@ import { auth, db, dbCollections } from "./config.js";
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, setDoc, getDoc, serverTimestamp, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { showTab, populateSelectOptions, toggleBalancesVisibility, showLoadingOverlay, hideLoadingOverlay } from "./ui.js";
-import { saveTransaction, deleteDocument, addSetting, saveRecurring, savePayroll, updatePayrollIRPF, addSubTransaction, removeSubTransaction } from "./db.js";
+import { saveTransaction, deleteDocument, addSetting, saveRecurring, savePayroll, updatePayrollIRPF, deletePayroll, addSubTransaction, removeSubTransaction } from "./db.js";
 import { renderIncomeExpenseChart, renderCategoryAnalysisChart, renderCashFlowChart, renderTendenciasChart, renderHeatmap, renderHistoryCategoryChart } from "./charts.js";
 import { callGemini, callGeminiChat, resetChatHistory, categorizarConcepto, getConsejoDelDia, buildFinancialContext, compressImage, analizarNomina } from "./api.js";
 import { generateAiReport, generateExlabesaReport, generateFuelReport } from "./reports.js";
@@ -1295,7 +1295,10 @@ const renderPayrollsTable = () => {
                     </div>
                 </td>
                 <td class="p-4 text-right">
-                    ${hasPDF ? `<button class="delete-pdf-btn text-gray-300 hover:text-red-500 transition" data-id="${p.id}" title="Eliminar solo el PDF">📄✕</button>` : ''}
+                    <div class="flex items-center justify-end gap-2">
+                        ${hasPDF ? `<button class="delete-pdf-btn text-gray-300 hover:text-red-500 transition" data-id="${p.id}" title="Eliminar solo el PDF">📄✕</button>` : ''}
+                        ${p.hasPayroll ? `<button class="delete-record-btn text-gray-300 hover:text-red-600 transition font-black" data-id="${p.id}" title="Eliminar registro completo">🗑️</button>` : ''}
+                    </div>
                 </td>
             </tr>`;
     }).join('');
@@ -1324,6 +1327,20 @@ const renderPayrollsTable = () => {
                     pdfUrl: null
                 });
                 showDeleteToast('PDF eliminado');
+            }
+        });
+    });
+
+    tbody.querySelectorAll('.delete-record-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            if (confirm('¿Eliminar el registro completo de esta nómina? Esta acción no se puede deshacer.')) {
+                const id = e.currentTarget.dataset.id;
+                const ok = await deletePayroll(id);
+                if (ok) {
+                    showDeleteToast('Nómina eliminada');
+                } else {
+                    showErrorToast('Error al eliminar la nómina');
+                }
             }
         });
     });

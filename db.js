@@ -96,6 +96,16 @@ export const updatePayrollIRPF = async (payrollId, newIRPF) => {
     }
 };
 
+export const deletePayroll = async (payrollId) => {
+    try {
+        await deleteDoc(doc(db, dbCollections.payrolls, payrollId));
+        return true;
+    } catch (e) {
+        console.error("Error deleting payroll:", e);
+        return false;
+    }
+};
+
 // ─── SUBTRANSACTIONS ──────────────────────────────────────────────────────────
 
 export const addSubTransaction = async (parentTxId, subTx) => {
