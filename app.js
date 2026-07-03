@@ -184,15 +184,24 @@ const renderSettings = (settings) => {
     populateSelectOptions('recurringAccountingBook', userAccountingBooks);
     populateSelectOptions('invAccount', userAccounts);
 
-    // Actualizar selector global del header
+    // Actualizar selector global del header (Desplegable Estilizado)
     const globalSel = document.getElementById('globalBookSelector');
     if (globalSel) {
         const current = globalSel.value;
-        globalSel.innerHTML = '<option value="all" class="bg-slate-800 text-white">Todos</option>' +
-            userAccountingBooks.map(b => `<option value="${b}" class="bg-slate-800 text-white">${b}</option>`).join('');
+        globalSel.innerHTML = '<option value="all" class="bg-slate-900 text-white">Todos</option>' +
+            userAccountingBooks.map(b => `<option value="${b}" class="bg-slate-900 text-white">${b}</option>`).join('');
         // Restaurar selección si sigue existiendo
         if (userAccountingBooks.includes(current)) globalSel.value = current;
+        else if (userAccountingBooks.includes(activeBook)) globalSel.value = activeBook;
         else globalSel.value = 'all';
+
+        // Re-añadir listener (limpiando previos para evitar duplicados si es necesario)
+        globalSel.onchange = (e) => {
+            activeBook = e.target.value;
+            renderDashboard();
+            if (!document.getElementById('transactionHistory').classList.contains('hidden')) applyFiltersAndRender();
+            if (!document.getElementById('investments').classList.contains('hidden')) renderInvestments();
+        };
     }
 
     // Datalist suggestions
@@ -398,11 +407,20 @@ const renderTransactionsTable = (txs) => {
             ? `<span class="ml-1 inline-flex items-center gap-0.5 text-[9px] bg-violet-100 text-violet-600 font-black px-1.5 py-0.5 rounded-full" title="${subTxs.length} reembolso(s) · recuperado ${recovered.toFixed(2)}€">↩ ${subTxs.length}</span>`
             : '';
 
+        const catsExp = userCategories.filter(c => !['Transferencia', 'Saldo Inicial'].includes(c));
+        const categoryOptions = catsExp.map(cat => `
+            <option value="${cat}" ${t.category === cat ? 'selected' : ''}>${cat}</option>
+        `).join('');
+
         return `<tr class="${rowClass} border-b border-gray-50 hover:bg-gray-50/50 transition">
             <td class="px-4 py-3 text-xs text-gray-500">${dateStr}</td>
             <td class="px-4 py-3 text-sm font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">${amountDisplay}</td>
             <td class="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs truncate">${t.description || '–'} ${subtxBadge} ${t.receiptImage ? '<span title="Tiene ticket">📎</span>' : ''} ${(t.tags || []).map(tag => `<span class="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 rounded-full font-bold">${tag}</span>`).join('')}</td>
-            <td class="px-4 py-3 hidden md:table-cell"><span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-bold">${t.category || '–'}</span></td>
+            <td class="px-4 py-3 hidden md:table-cell">
+                <select class="inline-cat-select font-bold text-[10px] bg-gray-100/50 text-gray-600 px-2 py-0.5 rounded-full outline-none cursor-pointer" data-id="${t.id}">
+                    ${categoryOptions}
+                </select>
+            </td>
             <td class="px-4 py-3 hidden md:table-cell text-xs text-gray-400">${t.account || '–'}</td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
                 <button class="subtx-btn text-xs font-black text-violet-400 hover:text-violet-600 mr-2 transition" data-id="${t.id}" title="Gestionar reembolsos">↩</button>
@@ -414,6 +432,21 @@ const renderTransactionsTable = (txs) => {
     tbody.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', async e => { await deleteDocument(dbCollections.transactions, e.currentTarget.dataset.id); showDeleteToast(); }));
     tbody.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', e => editTransaction(e.currentTarget.dataset.id)));
     tbody.querySelectorAll('.subtx-btn').forEach(btn => btn.addEventListener('click', e => openSubTransactionModal(e.currentTarget.dataset.id)));
+    
+    // Cambiar categoría inline
+    tbody.querySelectorAll('.inline-cat-select').forEach(select => {
+        select.addEventListener('change', async (e) => {
+            const txId = e.currentTarget.dataset.id;
+            const newCat = e.currentTarget.value;
+            try {
+                await updateDoc(doc(db, dbCollections.transactions, txId), { category: newCat });
+                showSaveToast('Categoría actualizada');
+            } catch (err) {
+                console.error("Error updating category inline:", err);
+                showErrorToast('Error al cambiar categoría');
+            }
+        });
+    });
 };
 
 const editTransaction = (id) => {
@@ -898,13 +931,7 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
     finally { document.getElementById('chatSendIcon').classList.remove('hidden'); document.getElementById('chatLoadingIcon').classList.add('hidden'); }
 });
 
-// SELECTOR GLOBAL DE LIBRO CONTABLE
-document.getElementById('globalBookSelector')?.addEventListener('change', (e) => {
-    activeBook = e.target.value;
-    renderDashboard();
-    if (!document.getElementById('transactionHistory').classList.contains('hidden')) applyFiltersAndRender();
-    if (!document.getElementById('investments').classList.contains('hidden')) renderInvestments();
-});
+// SELECTOR GLOBAL DE LIBRO CONTABLE eliminado (ahora es manejado en renderSettings a través de los pills dinámicos)
 
 // REPORTS
 document.getElementById('generatePdfBtn').addEventListener('click', () => generateAiReport(getActiveTxs()));

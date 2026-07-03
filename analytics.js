@@ -134,16 +134,11 @@ export const detectAlerts = (transactions) => {
     return alerts;
 };
 
-// --- DATOS PARA HEATMAP (últimos 90 días) ---
+// --- DATOS PARA CALENDARIO DIARIO (todas las transacciones históricas de gasto) ---
 export const calcHeatmapData = (transactions) => {
     const data = {};
-    const now = new Date();
-    const start = new Date(now);
-    start.setDate(start.getDate() - 89);
-
     transactions.filter(t => {
-        const d = t.date?.toDate?.();
-        return d && d >= start && t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category);
+        return t.date?.toDate && t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category);
     }).forEach(t => {
         const d = t.date.toDate();
         const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;

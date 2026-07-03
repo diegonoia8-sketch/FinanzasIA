@@ -210,46 +210,100 @@ export const renderTendenciasChart = (tendenciasData) => {
     });
 };
 
+let currentCalendarDate = new Date();
+
 export const renderHeatmap = (heatmapData) => {
     const container = document.getElementById('heatmapContainer');
     if (!container) return;
-    const maxValue = Math.max(...Object.values(heatmapData), 1);
-    const now = new Date();
-    const days = [];
-    for (let i = 89; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i);
-        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-        days.push({ key, value: heatmapData[key] || 0, date: d });
+
+    const label = document.getElementById('calMonthLabel');
+    const prevBtn = document.getElementById('calPrevBtn');
+    const nextBtn = document.getElementById('calNextBtn');
+
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+
+    if (label) {
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+        label.textContent = `${monthNames[month]} ${year}`;
+    }
+
+    // Set up navigation listeners once if not already set
+    if (prevBtn && !prevBtn.dataset.listener) {
+        prevBtn.dataset.listener = 'true';
+        prevBtn.addEventListener('click', () => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+            renderHeatmap(heatmapData);
+        });
+    }
+    if (nextBtn && !nextBtn.dataset.listener) {
+        nextBtn.dataset.listener = 'true';
+        nextBtn.addEventListener('click', () => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+            renderHeatmap(heatmapData);
+        });
+    }
+
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Dom, 1 = Lun...
+    const adjustedFirstDay = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // 0 = Lun, 6 = Dom
+    const totalDays = new Date(year, month + 1, 0).getDate();
+
+    // Get max value in this specific month for color scaling
+    let maxExpense = 1;
+    for (let day = 1; day <= totalDays; day++) {
+        const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const val = heatmapData[key] || 0;
+        if (val > maxExpense) maxExpense = val;
     }
 
     const getColor = (value) => {
-        if (value === 0) return 'bg-gray-100';
-        const ratio = value / maxValue;
-        if (ratio < 0.2) return 'bg-indigo-100';
-        if (ratio < 0.4) return 'bg-indigo-200';
-        if (ratio < 0.6) return 'bg-indigo-400';
-        if (ratio < 0.8) return 'bg-indigo-600';
-        return 'bg-indigo-800';
+        if (value === 0) return 'bg-gray-100 dark:bg-slate-800/40 text-gray-400';
+        const ratio = value / maxExpense;
+        if (ratio < 0.2) return 'bg-indigo-100 text-indigo-900';
+        if (ratio < 0.4) return 'bg-indigo-200 text-indigo-900';
+        if (ratio < 0.6) return 'bg-indigo-400 text-white';
+        if (ratio < 0.8) return 'bg-indigo-600 text-white';
+        return 'bg-indigo-800 text-white';
     };
 
-    container.innerHTML = `
-        <div class="flex flex-wrap gap-1">
-            ${days.map(d => `
-                <div class="w-3 h-3 rounded-sm ${getColor(d.value)} cursor-pointer transition hover:scale-125 relative group" title="${d.date.toLocaleDateString('es-ES')}: ${d.value.toFixed(2)}€">
-                    <div class="hidden group-hover:block absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-1 bg-gray-900 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap">
-                        ${d.date.toLocaleDateString('es-ES')}: ${d.value.toFixed(2)}€
-                    </div>
+    const daysHtml = [];
+    // Empty cells before first day
+    for (let i = 0; i < adjustedFirstDay; i++) {
+        daysHtml.push(`<div class="aspect-ratio rounded-lg bg-transparent"></div>`);
+    }
+
+    const todayStr = new Date().toDateString();
+
+    // Days grid
+    for (let day = 1; day <= totalDays; day++) {
+        const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const value = heatmapData[key] || 0;
+        const dObj = new Date(year, month, day);
+        const isToday = dObj.toDateString() === todayStr;
+
+        daysHtml.push(`
+            <div class="cal-day ${getColor(value)} ${isToday ? 'today' : ''} border border-gray-200/40 relative group cursor-pointer">
+                <span class="cal-day-num">${day}</span>
+                ${value > 0 ? `<span class="cal-day-amt">${value.toFixed(0)}€</span>` : ''}
+                <div class="hidden group-hover:block absolute z-10 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-900 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap shadow-md">
+                    ${dObj.toLocaleDateString('es-ES')}: ${value.toFixed(2)}€
                 </div>
-            `).join('')}
+            </div>
+        `);
+    }
+
+    container.innerHTML = `
+        <div class="grid grid-cols-7 gap-1.5 mb-2">
+            ${["L", "M", "M", "J", "V", "S", "D"].map(h => `<div class="text-center text-[10px] font-black text-gray-400 py-1">${h}</div>`).join('')}
+            ${daysHtml.join('')}
         </div>
-        <div class="flex items-center gap-2 mt-2 justify-end">
+        <div class="flex items-center gap-2 mt-3 justify-end">
             <span class="text-[9px] text-gray-400">Menos</span>
-            <div class="w-3 h-3 rounded-sm bg-gray-100"></div>
-            <div class="w-3 h-3 rounded-sm bg-indigo-200"></div>
-            <div class="w-3 h-3 rounded-sm bg-indigo-400"></div>
-            <div class="w-3 h-3 rounded-sm bg-indigo-600"></div>
-            <div class="w-3 h-3 rounded-sm bg-indigo-800"></div>
+            <div class="w-3 h-3 rounded bg-gray-100 dark:bg-slate-800/40"></div>
+            <div class="w-3 h-3 rounded bg-indigo-200"></div>
+            <div class="w-3 h-3 rounded bg-indigo-400"></div>
+            <div class="w-3 h-3 rounded bg-indigo-600"></div>
+            <div class="w-3 h-3 rounded bg-indigo-800"></div>
             <span class="text-[9px] text-gray-400">Más</span>
         </div>
     `;
