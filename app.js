@@ -14,6 +14,11 @@ import { parseCSVFile, guessCategory } from "./csv-importer.js";
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let userId = null;
 let allUserTransactions = [];
+let activeBook = 'all'; // Selector global de libro contable
+const getActiveTxs = () => activeBook === 'all'
+    ? allUserTransactions
+    : allUserTransactions.filter(t => t.accountingBook === activeBook);
+let currentFilteredTxs = []; // Últimas transacciones filtradas mostradas en el historial
 let allRecurringItems = [];
 
 let userCategories = [];
@@ -110,6 +115,7 @@ const setupRealtimeListeners = (uid) => {
                 document.getElementById('recurringDay').value = el.dataset.day;
                 document.getElementById('recurringCategory').value = el.dataset.category || '';
                 document.getElementById('recurringAccount').value = el.dataset.account || '';
+                document.getElementById('recurringAccountingBook').value = el.dataset.accountingbook || userAccountingBooks[0] || '';
                 document.getElementById('recurringFormTitle').textContent = 'Editar Suscripción';
                 document.getElementById('submitRecurringBtn').textContent = 'Guardar';
                 document.getElementById('cancelEditRecurringBtn').classList.remove('hidden');
@@ -175,7 +181,19 @@ const renderSettings = (settings) => {
     populateSelectOptions('csvDestAccount', userAccounts);
     populateSelectOptions('recurringCategory', catsExp);
     populateSelectOptions('recurringAccount', userAccounts);
+    populateSelectOptions('recurringAccountingBook', userAccountingBooks);
     populateSelectOptions('invAccount', userAccounts);
+
+    // Actualizar selector global del header
+    const globalSel = document.getElementById('globalBookSelector');
+    if (globalSel) {
+        const current = globalSel.value;
+        globalSel.innerHTML = '<option value="all" class="bg-slate-800 text-white">Todos</option>' +
+            userAccountingBooks.map(b => `<option value="${b}" class="bg-slate-800 text-white">${b}</option>`).join('');
+        // Restaurar selección si sigue existiendo
+        if (userAccountingBooks.includes(current)) globalSel.value = current;
+        else globalSel.value = 'all';
+    }
 
     // Datalist suggestions
     const datalist = document.getElementById('descriptionSuggestions');
@@ -201,12 +219,13 @@ const deleteSetting = async (type, value) => {
 
 // ─── DASHBOARD ───────────────────────────────────────────────────────────────
 const renderDashboard = () => {
-    renderIncomeExpenseChart(allUserTransactions);
-    renderCategoryAnalysisChart(allUserTransactions, document.getElementById('categoryAnalysisType')?.value || 'expense', document.getElementById('categoryAnalysisStartDate').value, document.getElementById('categoryAnalysisEndDate').value);
-    renderCashFlowChart(allUserTransactions);
+    const txs = getActiveTxs();
+    renderIncomeExpenseChart(txs);
+    renderCategoryAnalysisChart(txs, document.getElementById('categoryAnalysisType')?.value || 'expense', document.getElementById('categoryAnalysisStartDate').value, document.getElementById('categoryAnalysisEndDate').value);
+    renderCashFlowChart(txs);
     renderAccountsSummary();
     updateDashboardAnalytics();
-    updateDashboardFuelMetrics(allUserTransactions);
+    updateDashboardFuelMetrics(txs);
     renderUpcomingPayments(allRecurringItems);
 };
 
@@ -276,8 +295,9 @@ const updateDashboardFuelMetrics = (txs) => {
 };
 
 const updateDashboardAnalytics = () => {
+    const txs = getActiveTxs();
     // Health Score
-    const score = calcHealthScore(allUserTransactions);
+    const score = calcHealthScore(txs);
     const { label, color } = getHealthLabel(score);
     const ring = document.getElementById('scoreRing');
     if (ring) { ring.style.setProperty('--score-pct', `${score}%`); ring.style.background = `conic-gradient(${color} ${score}%, #e5e7eb ${score}%)`; }
@@ -285,14 +305,14 @@ const updateDashboardAnalytics = () => {
     const sl = document.getElementById('scoreLabel'); if (sl) { sl.textContent = label; sl.style.color = color; }
 
     // Prediction
-    const pred = calcEndOfMonthPrediction(allUserTransactions);
+    const pred = calcEndOfMonthPrediction(txs);
     const ps = document.getElementById('predSavings');
     if (ps) { ps.textContent = `${pred.projectedSavings >= 0 ? '+' : ''}${Number(pred.projectedSavings).toFixed(0)}€`; ps.className = `text-xl font-black ${pred.projectedSavings >= 0 ? 'text-emerald-600' : 'text-red-500'}`; }
     const pd = document.getElementById('predDailyRate');
     if (pd) pd.textContent = `Ritmo: ${Number(pred.dailyRate).toFixed(0)}€/día · ${pred.daysLeft}d restantes`;
 
     // Month comparison
-    const comp = calcMonthComparison(allUserTransactions);
+    const comp = calcMonthComparison(txs);
     const cd = document.getElementById('compDelta');
     if (cd) { cd.textContent = `${comp.deltaExp >= 0 ? '+' : ''}${Number(comp.deltaExp).toFixed(0)}%`; cd.className = `text-xl font-black ${comp.deltaExp <= 0 ? 'text-emerald-600' : 'text-red-500'}`; }
     const ctc = document.getElementById('compTopChanges');
@@ -301,19 +321,19 @@ const updateDashboardAnalytics = () => {
     }
 
     // Alerts
-    const alerts = detectAlerts(allUserTransactions);
+    const alerts = detectAlerts(txs);
     const ac = document.getElementById('alertsContainer');
     if (ac) {
         ac.innerHTML = alerts.map(a => `<div class="alert-${a.type} rounded-2xl px-4 py-3 text-sm font-medium flex items-start gap-2"><span>${a.icon}</span><span>${a.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</span></div>`).join('');
     }
 
     // Heatmap
-    renderHeatmap(calcHeatmapData(allUserTransactions));
+    renderHeatmap(calcHeatmapData(txs));
     // Tendencias
-    renderTendenciasChart(calcTendencias(allUserTransactions, userCategories));
+    renderTendenciasChart(calcTendencias(txs, userCategories));
 
     // Repeat last expense
-    const lastExpense = [...allUserTransactions].filter(t => t.type === 'expense').sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0))[0];
+    const lastExpense = [...txs].filter(t => t.type === 'expense').sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0))[0];
     if (lastExpense) {
         const rc = document.getElementById('repeatLastContainer');
         const label = document.getElementById('lastExpenseLabel');
@@ -325,7 +345,7 @@ const updateDashboardAnalytics = () => {
 
     // Daily tip (async, non-blocking)
     if (localStorage.getItem('geminiApiKey')) {
-        getConsejoDelDia(allUserTransactions).then(tip => {
+        getConsejoDelDia(txs).then(tip => {
             if (!tip) return;
             const card = document.getElementById('aiTipCard');
             const text = document.getElementById('aiTipText');
@@ -335,8 +355,9 @@ const updateDashboardAnalytics = () => {
 };
 
 const renderAccountsSummary = () => {
+    const txs = getActiveTxs();
     const accounts = {};
-    allUserTransactions.forEach(t => {
+    txs.forEach(t => {
         if (!accounts[t.account]) accounts[t.account] = 0;
         t.type === 'income' ? accounts[t.account] += t.amount : accounts[t.account] -= effectiveAmount(t);
     });
@@ -422,7 +443,7 @@ const applyFiltersAndRender = () => {
     const acc = document.getElementById('filterAccount').value;
     const concept = document.getElementById('filterConcept')?.value?.toLowerCase();
 
-    let filtered = [...allUserTransactions];
+    let filtered = [...getActiveTxs()];
     if (s) { const sd = new Date(s); sd.setHours(0, 0, 0, 0); filtered = filtered.filter(t => t.date?.toDate?.() >= sd); }
     if (e) { const ed = new Date(e); ed.setHours(23, 59, 59, 999); filtered = filtered.filter(t => t.date?.toDate?.() <= ed); }
     if (cat) filtered = filtered.filter(t => t.category === cat);
@@ -436,6 +457,7 @@ const applyFiltersAndRender = () => {
     }
 
     filtered.sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
+    currentFilteredTxs = filtered; // Guardar para el export CSV
     renderTransactionsTable(filtered);
 
     const chartType = document.getElementById('historyCategoryType')?.value || 'expense';
@@ -490,7 +512,11 @@ document.getElementById('quickRegisterBtn')?.addEventListener('click', () => {
     showTab('transactions');
     showTransactionMenu();
 });
-document.getElementById('viewHistoryBtn').addEventListener('click', () => { document.getElementById('transactionMain').classList.add('hidden'); document.getElementById('transactionHistory').classList.remove('hidden'); applyFiltersAndRender(); });
+document.getElementById('viewHistoryBtn').addEventListener('click', () => {
+    document.getElementById('transactionMain').classList.add('hidden');
+    document.getElementById('transactionHistory').classList.remove('hidden');
+    applyFiltersAndRender(); // esto también inicializa currentFilteredTxs
+});
 document.getElementById('backFromTransactionBtn').addEventListener('click', () => { document.getElementById('transactionMenu').classList.add('hidden'); document.getElementById('transactionMain').classList.remove('hidden'); });
 document.getElementById('backFromFormBtn').addEventListener('click', () => { document.getElementById('transactionContent').classList.add('hidden'); document.getElementById('transactionMenu').classList.remove('hidden'); resetTransactionForm(); });
 document.getElementById('backFromHistoryBtn').addEventListener('click', () => { document.getElementById('transactionHistory').classList.add('hidden'); document.getElementById('transactionMain').classList.remove('hidden'); });
@@ -633,13 +659,23 @@ document.getElementById('toggleCompactBtn').addEventListener('click', (e) => {
 });
 
 document.getElementById('exportExcelBtn').addEventListener('click', () => {
-    const headers = ['Fecha', 'Tipo', 'Descripción', 'Importe', 'Categoría', 'Cuenta', 'Notas', 'Tags'];
-    let csv = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
-    allUserTransactions.forEach(t => {
+    const txsToExport = currentFilteredTxs.length > 0 ? currentFilteredTxs : getActiveTxs();
+    const headers = ['Fecha', 'Tipo', 'Descripción', 'Importe', 'Categoría', 'Cuenta', 'Libro Contable', 'Notas', 'Tags'];
+    let csvContent = headers.join(',') + '\n';
+    txsToExport.forEach(t => {
         const d = t.date ? new Date(t.date.seconds * 1000).toLocaleDateString('es-ES') : 'N/A';
-        csv += [d, t.type === 'income' ? 'Ingreso' : 'Gasto', `"${(t.description || '').replace(/"/g, '""')}"`, t.amount?.toFixed(2), t.category || '', t.account || '', `"${(t.notes || '').replace(/"/g, '""')}"`, (t.tags || []).join('; ')].join(',') + '\n';
+        csvContent += [d, t.type === 'income' ? 'Ingreso' : 'Gasto', `"${(t.description || '').replace(/"/g, '""')}"`, t.amount?.toFixed(2), t.category || '', t.account || '', t.accountingBook || '', `"${(t.notes || '').replace(/"/g, '""')}"`, (t.tags || []).join('; ')].join(',') + '\n';
     });
-    const link = document.createElement('a'); link.href = encodeURI(csv); link.download = 'transacciones.csv'; document.body.appendChild(link); link.click(); link.remove();
+    // Usar Blob en lugar de data URI para soportar cualquier cantidad de datos
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `transacciones_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
 });
 
 // Past balance
@@ -648,7 +684,7 @@ document.getElementById('calculatePastBalanceBtn').addEventListener('click', () 
     if (!dateInput) return showErrorToast('Selecciona una fecha');
     const target = new Date(dateInput); target.setHours(23, 59, 59, 999);
     const accounts = {};
-    allUserTransactions.filter(t => t.date?.toDate?.() <= target && t.category !== '').forEach(t => {
+    getActiveTxs().filter(t => t.date?.toDate?.() <= target && t.category !== '').forEach(t => {
         if (!accounts[t.account]) accounts[t.account] = 0;
         t.type === 'income' ? accounts[t.account] += t.amount : accounts[t.account] -= effectiveAmount(t);
     });
@@ -670,7 +706,8 @@ document.getElementById('resetBalanceBtn').addEventListener('click', () => {
 
 // Category chart
 document.getElementById('updateCategoryChartBtn').addEventListener('click', () => {
-    renderCategoryAnalysisChart(allUserTransactions, document.getElementById('categoryAnalysisType')?.value || 'expense', document.getElementById('categoryAnalysisStartDate').value, document.getElementById('categoryAnalysisEndDate').value);
+    const txs = getActiveTxs();
+    renderCategoryAnalysisChart(txs, document.getElementById('categoryAnalysisType')?.value || 'expense', document.getElementById('categoryAnalysisStartDate').value, document.getElementById('categoryAnalysisEndDate').value);
 });
 
 // Balances toggle
@@ -853,22 +890,31 @@ document.getElementById('chatForm').addEventListener('submit', async (e) => {
     document.getElementById('chatSendIcon').classList.add('hidden');
     document.getElementById('chatLoadingIcon').classList.remove('hidden');
     try {
-        const context = buildFinancialContext(allUserTransactions);
-        const reply = await callGeminiChat(msg, context, allUserTransactions);
+        const txs = getActiveTxs();
+        const context = buildFinancialContext(txs);
+        const reply = await callGeminiChat(msg, context, txs);
         addBotMsg(reply);
     } catch (err) { addBotMsg(`Error: ${err.message}`); }
     finally { document.getElementById('chatSendIcon').classList.remove('hidden'); document.getElementById('chatLoadingIcon').classList.add('hidden'); }
 });
 
+// SELECTOR GLOBAL DE LIBRO CONTABLE
+document.getElementById('globalBookSelector')?.addEventListener('change', (e) => {
+    activeBook = e.target.value;
+    renderDashboard();
+    if (!document.getElementById('transactionHistory').classList.contains('hidden')) applyFiltersAndRender();
+    if (!document.getElementById('investments').classList.contains('hidden')) renderInvestments();
+});
+
 // REPORTS
-document.getElementById('generatePdfBtn').addEventListener('click', () => generateAiReport(allUserTransactions));
+document.getElementById('generatePdfBtn').addEventListener('click', () => generateAiReport(getActiveTxs()));
 
 document.getElementById('generateExlabesaBtn').addEventListener('click', async () => {
     const start = document.getElementById('exlabesaStartDate').value;
     const end = document.getElementById('exlabesaEndDate').value;
     if (!start || !end) return showErrorToast('Selecciona fechas');
     document.getElementById('exlabesaModal').classList.add('hidden');
-    const txIds = await generateExlabesaReport(allUserTransactions, start, end);
+    const txIds = await generateExlabesaReport(getActiveTxs(), start, end);
     if (txIds && txIds.length > 0) {
         pendingExlabesaPrintTxIds = txIds;
     }
@@ -892,7 +938,8 @@ document.getElementById('recurringForm').addEventListener('submit', async (e) =>
         amount: parseFloat(document.getElementById('recurringAmount').value),
         day: parseInt(document.getElementById('recurringDay').value),
         category: document.getElementById('recurringCategory').value || 'Facturas',
-        account: document.getElementById('recurringAccount').value || ''
+        account: document.getElementById('recurringAccount').value || '',
+        accountingBook: document.getElementById('recurringAccountingBook').value || userAccountingBooks[0] || 'Principal'
     };
     if (id) {
         await updateDoc(doc(db, dbCollections.recurring, id), data);

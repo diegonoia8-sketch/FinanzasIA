@@ -40,7 +40,7 @@ export const renderRecurringList = (items) => {
                 </label>
             </td>
             <td class="py-4 text-right whitespace-nowrap">
-                <button class="edit-recurring bg-indigo-50 text-indigo-500 p-2 rounded-lg hover:bg-indigo-500 hover:text-white transition mr-1" data-id="${item.id}" data-name="${item.name}" data-amount="${item.amount}" data-day="${item.day}" data-category="${item.category}" data-account="${item.account}" title="Editar suscripción">
+                <button class="edit-recurring bg-indigo-50 text-indigo-500 p-2 rounded-lg hover:bg-indigo-500 hover:text-white transition mr-1" data-id="${item.id}" data-name="${item.name}" data-amount="${item.amount}" data-day="${item.day}" data-category="${item.category}" data-account="${item.account}" data-accountingbook="${item.accountingBook || ''}" title="Editar suscripción">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                 </button>
                 <button class="delete-recurring bg-red-50 text-red-500 p-2 rounded-lg hover:bg-red-500 hover:text-white transition" data-id="${item.id}" title="Eliminar definitivamente">
@@ -120,8 +120,8 @@ export const checkAndRegisterRecurring = async (userId, recurringItems, transact
                 amount: item.amount,
                 category: item.category || 'Facturas',
                 account: item.account || '',
-                accountingBook: 'Principal',
-                date: theoreticalDate, // Registro con la fecha teórica
+                accountingBook: item.accountingBook || 'Principal',
+                date: theoreticalDate,
                 userId,
                 createdAt: serverTimestamp(),
                 isRecurring: true
