@@ -300,36 +300,178 @@ const getPDFStyles = () => `
 </style>
 `;
 
-// Generar una imagen de gráfico comparativo simple (Canvas)
+// Generar una imagen de gráfico comparativo estilizada HD
 const generateComparisonChart = (label, periodVal, historicalVal, color = '#f59e0b') => {
     const canvas = document.createElement('canvas');
-    canvas.width = 400;
-    canvas.height = 100;
+    canvas.width = 600;
+    canvas.height = 140;
     const ctx = canvas.getContext('2d');
     
+    if (!periodVal || !historicalVal) return '';
+
     const max = Math.max(periodVal, historicalVal) * 1.2;
-    const wP = (periodVal / max) * 300;
-    const wH = (historicalVal / max) * 300;
+    const barWidthMax = 380;
+    const wP = Math.max(10, (periodVal / max) * barWidthMax);
+    const wH = Math.max(10, (historicalVal / max) * barWidthMax);
 
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(0, 0, 400, 100);
+    // Fondo limpio
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 600, 140);
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0, 0, 600, 140);
 
-    // Periodo
+    // Función aux para rectángulos redondeados
+    const roundRect = (x, y, w, h, r) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+        ctx.fill();
+    };
+
+    // Barra Periodo
     ctx.fillStyle = color;
-    ctx.fillRect(80, 20, wP, 25);
+    roundRect(110, 24, wP, 32, 6);
     ctx.fillStyle = '#1e293b';
-    ctx.font = 'bold 12px Inter';
-    ctx.fillText('Periodo', 10, 38);
-    ctx.fillText(periodVal.toFixed(2), 85 + wP, 38);
+    ctx.font = 'bold 13px Inter, sans-serif';
+    ctx.fillText('Este Periodo', 12, 45);
+    ctx.font = '800 14px Inter, sans-serif';
+    ctx.fillText(`${periodVal.toFixed(2)} ${label}`, 125 + wP, 45);
 
-    // Histórico
+    // Barra Histórico
     ctx.fillStyle = '#94a3b8';
-    ctx.fillRect(80, 55, wH, 25);
+    roundRect(110, 78, wH, 32, 6);
     ctx.fillStyle = '#64748b';
-    ctx.fillText('Histórico', 10, 73);
-    ctx.fillText(historicalVal.toFixed(2), 85 + wH, 73);
+    ctx.font = 'bold 13px Inter, sans-serif';
+    ctx.fillText('Histórico', 12, 99);
+    ctx.font = '800 14px Inter, sans-serif';
+    ctx.fillText(`${historicalVal.toFixed(2)} ${label}`, 125 + wH, 99);
 
-    return canvas.toDataURL();
+    return canvas.toDataURL('image/png');
+};
+
+// Generar gráfico de tendencia de consumo / coste por repostaje
+const generateFuelTrendChart = (records) => {
+    if (!records || records.length < 2) return '';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 680;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+
+    // Fondo
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 680, 200);
+
+    // Calcular consumo puntual entre cada punto si hay KM
+    const points = [];
+    for (let i = 1; i < records.length; i++) {
+        const prev = records[i - 1];
+        const curr = records[i];
+        if (curr.km && prev.km && curr.km > prev.km && curr.liters) {
+            const dist = curr.km - prev.km;
+            const cons = (curr.liters / dist) * 100;
+            const price = curr.liters > 0 ? curr.amount / curr.liters : 0;
+            const dateLabel = new Date(curr.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+            points.push({ date: dateLabel, cons, price, amount: curr.amount, liters: curr.liters, km: dist });
+        }
+    }
+
+    if (points.length === 0) {
+        // Fallback: mostrar al menos evolución de € por repostaje
+        records.forEach(r => {
+            const dateLabel = new Date(r.date).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+            const price = r.liters ? r.amount / r.liters : 0;
+            points.push({ date: dateLabel, cons: r.amount, price, amount: r.amount, liters: r.liters || 0, km: 0 });
+        });
+    }
+
+    const paddingLeft = 45;
+    const paddingRight = 30;
+    const paddingTop = 30;
+    const paddingBottom = 40;
+    const chartW = 680 - paddingLeft - paddingRight;
+    const chartH = 200 - paddingTop - paddingBottom;
+
+    const values = points.map(p => p.cons);
+    const minVal = Math.min(...values) * 0.85;
+    const maxVal = Math.max(...values) * 1.15 || 1;
+
+    // Lineas de grilla de fondo
+    ctx.strokeStyle = '#f1f5f9';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+        const y = paddingTop + (chartH / 4) * i;
+        const val = maxVal - ((maxVal - minVal) / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(paddingLeft + chartW, y);
+        ctx.stroke();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(val.toFixed(1), paddingLeft - 6, y + 3);
+    }
+
+    // Coordenadas de los puntos
+    const coords = points.map((p, idx) => {
+        const step = points.length > 1 ? chartW / (points.length - 1) : chartW / 2;
+        const x = paddingLeft + (points.length > 1 ? idx * step : chartW / 2);
+        const y = paddingTop + chartH - ((p.cons - minVal) / (maxVal - minVal)) * chartH;
+        return { x, y, val: p.cons, date: p.date };
+    });
+
+    // Dibujar área con gradiente
+    const grad = ctx.createLinearGradient(0, paddingTop, 0, paddingTop + chartH);
+    grad.addColorStop(0, 'rgba(217, 119, 6, 0.25)');
+    grad.addColorStop(1, 'rgba(217, 119, 6, 0.0)');
+
+    ctx.beginPath();
+    ctx.moveTo(coords[0].x, paddingTop + chartH);
+    coords.forEach(c => ctx.lineTo(c.x, c.y));
+    ctx.lineTo(coords[coords.length - 1].x, paddingTop + chartH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Dibujar línea principal
+    ctx.beginPath();
+    ctx.strokeStyle = '#d97706';
+    ctx.lineWidth = 3;
+    coords.forEach((c, idx) => {
+        if (idx === 0) ctx.moveTo(c.x, c.y);
+        else ctx.lineTo(c.x, c.y);
+    });
+    ctx.stroke();
+
+    // Dibujar puntos y etiquetas de valor/fecha
+    coords.forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        // Valor sobre el punto
+        ctx.fillStyle = '#7c2d12';
+        ctx.font = 'bold 10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(c.val.toFixed(1), c.x, c.y - 9);
+
+        // Fecha debajo
+        ctx.fillStyle = '#64748b';
+        ctx.font = '9px Inter, sans-serif';
+        ctx.fillText(c.date, c.x, paddingTop + chartH + 18);
+    });
+
+    return canvas.toDataURL('image/png');
 };
 
 // ============================================================================

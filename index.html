@@ -710,10 +710,14 @@
             </div>
 
             <!-- Portfolio Summary -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                     <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Resultado Total Cerrado</p>
                     <p id="invTotalResult" class="text-2xl font-black text-gray-800">–</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Dividendos</p>
+                    <p id="invTotalDividends" class="text-2xl font-black text-emerald-600">–</p>
                 </div>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                     <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ROI Medio</p>
@@ -740,11 +744,11 @@
                     </div>
                     <div class="col-span-2">
                         <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Concepto</label>
-                        <input type="text" id="invDescription" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Ej: Compra Apple Inc." required>
+                        <input type="text" id="invDescription" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Ej: Compra / Dividendo Apple Inc." required>
                     </div>
                     <div class="col-span-1">
                         <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Nº de Acciones</label>
-                        <input type="number" id="invShares" step="0.00001" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="0.00" required>
+                        <input type="number" id="invShares" step="0.00001" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100" placeholder="0.00">
                     </div>
                     <div class="col-span-1">
                         <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Cantidad Total (€)</label>
@@ -755,6 +759,7 @@
                         <select id="invType" class="mt-1 w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-indigo-100">
                             <option value="expense">Compra</option>
                             <option value="income">Venta</option>
+                            <option value="dividend">Dividendo 💰</option>
                         </select>
                     </div>
                     <div class="col-span-1">
@@ -787,7 +792,8 @@
                                     <th class="p-4">Fechas (C | V)</th>
                                     <th class="p-4">P. Compra</th>
                                     <th class="p-4">P. Venta</th>
-                                    <th class="p-4">Resultado</th>
+                                    <th class="p-4">Dividendos</th>
+                                    <th class="p-4">Resultado Total</th>
                                     <th class="p-4">ROI (%)</th>
                                 </tr>
                             </thead>

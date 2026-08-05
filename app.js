@@ -79,7 +79,7 @@ const setupRealtimeListeners = (uid) => {
             renderSettings(snap.data());
         } else {
             setDoc(snap.ref, {
-                categories: ["Salario", "Inversiones", "Regalo", "Otros Ingresos", "Alquiler", "Comida", "Transporte", "Combustible", "Ocio", "Facturas", "Salud", "Educación", "Ropa", "Otros Gastos", "Transferencia", "Saldo Inicial", "No Contabilizados", "EXLABESA"],
+                categories: ["Salario", "Inversiones", "Dividendo", "Regalo", "Otros Ingresos", "Alquiler", "Comida", "Transporte", "Combustible", "Ocio", "Facturas", "Salud", "Educación", "Ropa", "Otros Gastos", "Transferencia", "Saldo Inicial", "No Contabilizados", "EXLABESA"],
                 accounts: ["Efectivo", "Cuenta Bancaria", "Tarjeta de Crédito"],
                 accountingBooks: ["Principal"]
             });
@@ -1549,6 +1549,22 @@ const initInvFilters = () => {
     yearSelect.value = 'all'; // Default to show everything
 };
 
+const isInvestmentTx = (t) => {
+    if (!t) return false;
+    if (t.type === 'dividend' || t.subType === 'dividend') return true;
+    const cat = (t.category || '').toLowerCase();
+    const desc = (t.description || '').toLowerCase();
+    return cat.includes('invers') || cat.includes('dividend') || desc.includes('dividendo');
+};
+
+const isDividendTx = (t) => {
+    if (!t) return false;
+    if (t.type === 'dividend' || t.subType === 'dividend') return true;
+    const cat = (t.category || '').toLowerCase();
+    const desc = (t.description || '').toLowerCase();
+    return cat.includes('dividend') || desc.includes('dividendo');
+};
+
 const renderInvestments = () => {
     initInvFilters();
 
@@ -1556,9 +1572,7 @@ const renderInvestments = () => {
     const month = document.getElementById('invFilterMonth').value;
     const filterText = document.getElementById('invFilterConcept').value.toLowerCase();
 
-    let investments = allUserTransactions.filter(t =>
-        t.category && t.category === 'Inversiones'
-    );
+    let investments = allUserTransactions.filter(isInvestmentTx);
 
     // Apply Year/Month filter
     investments = investments.filter(t => {
@@ -1593,22 +1607,32 @@ const renderInvestmentHistory = (txs) => {
 
     tbody.innerHTML = txs.map(t => {
         const dateStr = t.date ? new Date(t.date.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '–';
+        const isDiv = isDividendTx(t);
+        const isInc = t.type === 'income';
+
+        let typeBadge = '';
+        let amountHtml = '';
+        if (isDiv) {
+            typeBadge = '<span class="text-[9px] font-black uppercase px-2 py-1 rounded-md bg-purple-100 text-purple-700">💰 Dividendo</span>';
+            amountHtml = `<span class="font-black text-purple-600">+${t.amount.toFixed(2)}€</span>`;
+        } else if (isInc) {
+            typeBadge = '<span class="text-[9px] font-black uppercase px-2 py-1 rounded-md bg-emerald-100 text-emerald-700">Venta</span>';
+            amountHtml = `<span class="font-black text-emerald-600">+${t.amount.toFixed(2)}€</span>`;
+        } else {
+            typeBadge = '<span class="text-[9px] font-black uppercase px-2 py-1 rounded-md bg-red-100 text-red-700">Compra</span>';
+            amountHtml = `<span class="font-black text-red-500">-${t.amount.toFixed(2)}€</span>`;
+        }
+
         return `
             <tr class="border-b border-gray-50 hover:bg-gray-50/50 transition">
                 <td class="p-4 text-xs text-gray-500">${dateStr}</td>
+                <td class="p-4">${typeBadge}</td>
+                <td class="p-4">${amountHtml}</td>
                 <td class="p-4">
-                    <span class="text-[9px] font-black uppercase px-2 py-1 rounded-md ${t.type === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}">
-                        ${t.type === 'income' ? 'Venta' : 'Compra'}
-                    </span>
+                    <div class="font-bold text-gray-800">${t.ticker || (t.description ? t.description.split(' ')[0] : '–')}</div>
+                    <div class="text-[10px] text-gray-400 font-black uppercase tracking-widest">${t.opId ? 'ID: ' + t.opId : 'SIN ID'}</div>
                 </td>
-                <td class="p-4 font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">
-                    ${t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}€
-                </td>
-                <td class="p-4">
-                    <div class="font-bold text-gray-800">${t.ticker || '–'}</div>
-                    <div class="text-[10px] text-gray-400 font-black uppercase tracking-widest">${t.opId || 'NO-ID'}</div>
-                </td>
-                <td class="p-4 font-medium text-gray-600">${t.shares || '–'}</td>
+                <td class="p-4 font-medium text-gray-600">${t.shares ? t.shares : '–'}</td>
                 <td class="p-4 text-[10px] text-gray-400 font-bold">${t.account || '–'}</td>
                 <td class="p-4 text-right flex justify-end gap-2">
                     <button class="edit-inv-btn text-xs font-black text-indigo-400 hover:text-indigo-600 transition" data-id="${t.id}">Editar</button>
@@ -1629,7 +1653,7 @@ const renderInvestmentHistory = (txs) => {
         document.getElementById('invDescription').value = t.description || '';
         document.getElementById('invShares').value = t.shares || '';
         document.getElementById('invAmount').value = t.amount || '';
-        document.getElementById('invType').value = t.type || 'expense';
+        document.getElementById('invType').value = isDividendTx(t) ? 'dividend' : (t.type || 'expense');
         document.getElementById('invAccount').value = t.account || '';
         document.getElementById('invDate').value = t.date?.seconds ? new Date(t.date.seconds * 1000).toISOString().split('T')[0] : '';
 
@@ -1651,49 +1675,61 @@ const renderClosedOperations = (allInv) => {
     const tbody = document.getElementById('invClosedTableBody');
     if (!tbody) return;
 
-    // Agrupar por Op ID
+    // Agrupar ÚNICAMENTE por Op ID explícito (sin deducción automática)
     const groups = {};
     allInv.forEach(t => {
-        if (!t.opId) return;
-        if (!groups[t.opId]) groups[t.opId] = { buys: [], sells: [], ticker: t.ticker, description: t.description };
-        if (t.type === 'expense') groups[t.opId].buys.push(t);
-        else groups[t.opId].sells.push(t);
+        if (!t.opId || !t.opId.trim()) return;
+        const opId = t.opId.trim();
+
+        if (!groups[opId]) groups[opId] = { buys: [], sells: [], dividends: [], ticker: t.ticker || t.description, description: t.description };
+        
+        if (isDividendTx(t)) {
+            groups[opId].dividends.push(t);
+        } else if (t.type === 'expense') {
+            groups[opId].buys.push(t);
+        } else {
+            groups[opId].sells.push(t);
+        }
     });
 
-    const closed = Object.entries(groups).filter(([id, g]) => g.buys.length > 0 && g.sells.length > 0);
+    const closed = Object.entries(groups).filter(([id, g]) => g.buys.length > 0 && (g.sells.length > 0 || g.dividends.length > 0));
 
     if (closed.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-gray-300">No hay operaciones cerradas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="p-10 text-center text-gray-300">No hay operaciones completadas o con dividendos vinculados por ID.</td></tr>';
         return;
     }
 
     tbody.innerHTML = closed.map(([opId, g]) => {
         const totalBuy = g.buys.reduce((s, t) => s + t.amount, 0);
         const totalSell = g.sells.reduce((s, t) => s + t.amount, 0);
+        const totalDiv = g.dividends.reduce((s, t) => s + t.amount, 0);
+
         const totalSharesBuy = g.buys.reduce((s, t) => s + (t.shares || 0), 0);
         const totalSharesSell = g.sells.reduce((s, t) => s + (t.shares || 0), 0);
 
-        const avgBuyPrice = totalBuy / totalSharesBuy;
-        const avgSellPrice = totalSell / totalSharesSell;
+        const avgBuyPrice = totalSharesBuy > 0 ? totalBuy / totalSharesBuy : 0;
+        const avgSellPrice = totalSharesSell > 0 ? totalSell / totalSharesSell : 0;
 
-        const result = totalSell - totalBuy;
-        const roi = (result / totalBuy) * 100;
+        const result = (totalSell + totalDiv) - totalBuy;
+        const roi = totalBuy > 0 ? (result / totalBuy) * 100 : 0;
 
-        const firstBuyDate = new Date(Math.min(...g.buys.map(t => t.date?.seconds * 1000 || 0))).toLocaleDateString();
-        const lastSellDate = new Date(Math.max(...g.sells.map(t => t.date?.seconds * 1000 || 0))).toLocaleDateString();
+        const getTs = (t) => t.date?.seconds ? t.date.seconds * 1000 : (t.date instanceof Date ? t.date.getTime() : 0);
+        const firstBuyDate = g.buys.length ? new Date(Math.min(...g.buys.map(getTs))).toLocaleDateString() : '–';
+        const lastSellDate = g.sells.length ? new Date(Math.max(...g.sells.map(getTs))).toLocaleDateString() : '–';
 
         return `
             <tr class="border-b border-gray-50 hover:bg-gray-50 transition">
                 <td class="p-4">
                     <div class="font-black text-gray-700">${g.description}</div>
-                    <div class="text-[10px] font-bold text-indigo-500 uppercase">${g.ticker} (Op: ${opId})</div>
+                    <div class="text-[10px] font-bold text-indigo-500 uppercase">${g.ticker || 'STOCK'} (ID: ${opId})</div>
                 </td>
                 <td class="p-4 text-xs font-medium text-gray-500">
                     <div>C: ${firstBuyDate}</div>
                     <div>V: ${lastSellDate}</div>
                 </td>
-                <td class="p-4 text-gray-600 font-medium">${avgBuyPrice.toFixed(3)}€</td>
-                <td class="p-4 text-gray-600 font-medium">${avgSellPrice.toFixed(3)}€</td>
+                <td class="p-4 text-gray-600 font-medium">${avgBuyPrice > 0 ? avgBuyPrice.toFixed(3) + '€' : '–'}</td>
+                <td class="p-4 text-gray-600 font-medium">${avgSellPrice > 0 ? avgSellPrice.toFixed(3) + '€' : '–'}</td>
+                <td class="p-4 font-bold text-purple-600">${totalDiv > 0 ? '+' + totalDiv.toFixed(2) + '€' : '–'}</td>
                 <td class="p-4 font-black ${result >= 0 ? 'text-emerald-600' : 'text-red-500'}">
                     ${result >= 0 ? '+' : ''}${result.toFixed(2)}€
                 </td>
@@ -1708,13 +1744,24 @@ const renderClosedOperations = (allInv) => {
 };
 
 const updateInvestmentSummary = (investments) => {
-    // Solo operaciones cerradas para el resultado total
     const groups = {};
+    let totalDividendsAll = 0;
+
     investments.forEach(t => {
-        if (!t.opId) return;
-        if (!groups[t.opId]) groups[t.opId] = { buys: [], sells: [] };
-        if (t.type === 'expense') groups[t.opId].buys.push(t);
-        else groups[t.opId].sells.push(t);
+        if (isDividendTx(t)) {
+            totalDividendsAll += t.amount || 0;
+        }
+        if (!t.opId || !t.opId.trim()) return;
+        const opId = t.opId.trim();
+
+        if (!groups[opId]) groups[opId] = { buys: [], sells: [], dividends: [] };
+        if (isDividendTx(t)) {
+            groups[opId].dividends.push(t);
+        } else if (t.type === 'expense') {
+            groups[opId].buys.push(t);
+        } else {
+            groups[opId].sells.push(t);
+        }
     });
 
     let totalResult = 0;
@@ -1722,12 +1769,13 @@ const updateInvestmentSummary = (investments) => {
     let closedCount = 0;
 
     Object.values(groups).forEach(g => {
-        if (g.buys.length > 0 && g.sells.length > 0) {
+        if (g.buys.length > 0 && (g.sells.length > 0 || g.dividends.length > 0)) {
             const buy = g.buys.reduce((s, t) => s + t.amount, 0);
             const sell = g.sells.reduce((s, t) => s + t.amount, 0);
-            const res = sell - buy;
+            const div = g.dividends.reduce((s, t) => s + t.amount, 0);
+            const res = (sell + div) - buy;
             totalResult += res;
-            totalRoiSum += (res / buy) * 100;
+            totalRoiSum += buy > 0 ? (res / buy) * 100 : 0;
             closedCount++;
         }
     });
@@ -1736,6 +1784,11 @@ const updateInvestmentSummary = (investments) => {
     if (resEl) {
         resEl.textContent = `${totalResult.toFixed(2)}€`;
         resEl.className = `text-2xl font-black ${totalResult >= 0 ? 'text-emerald-600' : 'text-red-500'}`;
+    }
+
+    const divEl = document.getElementById('invTotalDividends');
+    if (divEl) {
+        divEl.textContent = `${totalDividendsAll.toFixed(2)}€`;
     }
 
     const roiEl = document.getElementById('invAvgROI');
@@ -1767,7 +1820,7 @@ document.getElementById('invAmount')?.addEventListener('input', updateInvPriceHi
 document.getElementById('invTicker')?.addEventListener('blur', (e) => {
     const ticker = e.target.value.toUpperCase().trim();
     if (!ticker) return;
-    const existing = allUserTransactions.find(t => t.category === 'Inversión' && t.ticker === ticker);
+    const existing = allUserTransactions.find(t => (t.category === 'Inversión' || t.category === 'Inversiones') && t.ticker === ticker);
     if (existing && !document.getElementById('invDescription').value) {
         document.getElementById('invDescription').value = existing.description;
     }
@@ -1778,21 +1831,23 @@ document.getElementById('investmentForm')?.addEventListener('submit', async (e) 
     e.preventDefault();
     const type = document.getElementById('invType').value;
     const opId = document.getElementById('invOpId').value.trim();
+    const ticker = document.getElementById('invTicker').value.toUpperCase().trim();
 
     // Validación de trazabilidad para ventas
     if (type === 'income') {
-        const hasBuy = allUserTransactions.some(t => t.category === 'Inversión' && t.opId === opId && t.type === 'expense');
+        const hasBuy = allUserTransactions.some(t => (t.category === 'Inversión' || t.category === 'Inversiones') && t.opId === opId && t.type === 'expense');
         if (!hasBuy) {
             showErrorToast('Error: No hay una operación de compra con este Nº ID');
             return;
         }
     }
 
+    const sharesInput = parseFloat(document.getElementById('invShares').value);
     const data = {
         opId,
-        ticker: document.getElementById('invTicker').value.toUpperCase().trim(),
+        ticker,
         description: document.getElementById('invDescription').value.trim(),
-        shares: parseFloat(document.getElementById('invShares').value),
+        shares: isNaN(sharesInput) ? 0 : sharesInput,
         amount: parseFloat(document.getElementById('invAmount').value),
         type,
         date: new Date(document.getElementById('invDate').value),

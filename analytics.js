@@ -22,8 +22,14 @@ export const calcHealthScore = (transactions) => {
         const d = t.date?.toDate?.();
         return d && d.getMonth() === month && d.getFullYear() === year;
     });
-    const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
+    const isExcludedCat = (cat) => {
+        if (!cat) return false;
+        const c = cat.toLowerCase();
+        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend');
+    };
+
+    const income = txMonth.filter(t => t.type === 'income' && !isExcludedCat(t.category)).reduce((s, t) => s + t.amount, 0);
+    const expense = txMonth.filter(t => t.type === 'expense' && !isExcludedCat(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
 
     // Savings rate (0-60 pts)
     const savingsRate = income > 0 ? Math.max(0, (income - expense) / income) : 0;
@@ -49,12 +55,18 @@ export const calcEndOfMonthPrediction = (transactions) => {
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const daysLeft = daysInMonth - dayOfMonth;
 
+    const isExcludedCat = (cat) => {
+        if (!cat) return false;
+        const c = cat.toLowerCase();
+        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend');
+    };
+
     const txMonth = transactions.filter(t => {
         const d = t.date?.toDate?.();
         return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     });
-    const income = txMonth.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
-    const expense = txMonth.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
+    const income = txMonth.filter(t => t.type === 'income' && !isExcludedCat(t.category)).reduce((s, t) => s + t.amount, 0);
+    const expense = txMonth.filter(t => t.type === 'expense' && !isExcludedCat(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
     const dailyRate = dayOfMonth > 0 ? expense / dayOfMonth : 0;
     const projectedExpense = expense + (dailyRate * daysLeft);
     const projectedSavings = income - projectedExpense;
@@ -69,13 +81,19 @@ export const calcMonthComparison = (transactions) => {
     const pM = cM === 0 ? 11 : cM - 1;
     const pY = cM === 0 ? cY - 1 : cY;
 
+    const isExcludedCat = (cat) => {
+        if (!cat) return false;
+        const c = cat.toLowerCase();
+        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend');
+    };
+
     const filterMonth = (m, y) => transactions.filter(t => {
         const d = t.date?.toDate?.();
         return d && d.getMonth() === m && d.getFullYear() === y;
     });
 
-    const sumExpense = (txs) => txs.filter(t => t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
-    const sumIncome = (txs) => txs.filter(t => t.type === 'income' && !['Transferencia','Saldo Inicial','Inversiones'].includes(t.category)).reduce((s, t) => s + t.amount, 0);
+    const sumExpense = (txs) => txs.filter(t => t.type === 'expense' && !isExcludedCat(t.category)).reduce((s, t) => s + effectiveAmount(t), 0);
+    const sumIncome = (txs) => txs.filter(t => t.type === 'income' && !isExcludedCat(t.category)).reduce((s, t) => s + t.amount, 0);
 
     const cTxs = filterMonth(cM, cY);
     const pTxs = filterMonth(pM, pY);
