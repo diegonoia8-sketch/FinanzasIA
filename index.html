@@ -710,7 +710,7 @@
             </div>
 
             <!-- Portfolio Summary -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                     <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Resultado Total Cerrado</p>
                     <p id="invTotalResult" class="text-2xl font-black text-gray-800">–</p>
@@ -718,6 +718,10 @@
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                     <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Dividendos</p>
                     <p id="invTotalDividends" class="text-2xl font-black text-emerald-600">–</p>
+                </div>
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                    <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Intereses</p>
+                    <p id="invTotalInterests" class="text-2xl font-black text-blue-600">–</p>
                 </div>
                 <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                     <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">ROI Medio</p>
@@ -760,6 +764,7 @@
                             <option value="expense">Compra</option>
                             <option value="income">Venta</option>
                             <option value="dividend">Dividendo 💰</option>
+                            <option value="interest">Interés 📈</option>
                         </select>
                     </div>
                     <div class="col-span-1">
@@ -798,7 +803,7 @@
                                 </tr>
                             </thead>
                             <tbody id="invClosedTableBody" class="text-sm divide-y divide-gray-50">
-                                <tr><td colspan="6" class="p-10 text-center text-gray-300">No hay operaciones cerradas.</td></tr>
+                                <tr><td colspan="7" class="p-10 text-center text-gray-300">No hay operaciones cerradas.</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -813,20 +818,47 @@
                         </div>
                     </div>
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/50">
-                                    <th class="p-4">Op ID</th>
-                                    <th class="p-4">Fecha</th>
-                                    <th class="p-4">Tipo</th>
-                                    <th class="p-4">Ticker</th>
-                                    <th class="p-4">Acciones</th>
-                                    <th class="p-4">Cantidad</th>
-                                    <th class="p-4 text-right">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="invHistoryTableBody" class="text-sm divide-y divide-gray-50"></tbody>
-                        </table>
+                        <div class="overflow-y-auto max-h-[420px]">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="sticky top-0 z-10">
+                                    <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/95 backdrop-blur-sm">
+                                        <th class="p-4">Op ID</th>
+                                        <th class="p-4">Fecha</th>
+                                        <th class="p-4">Tipo</th>
+                                        <th class="p-4">Ticker</th>
+                                        <th class="p-4">Acciones</th>
+                                        <th class="p-4">Cantidad</th>
+                                        <th class="p-4 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invHistoryTableBody" class="text-sm divide-y divide-gray-50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interests Table -->
+                <div class="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                    <div class="p-6 border-b border-gray-50 bg-blue-50/20">
+                        <h3 class="text-sm font-black text-gray-700 uppercase tracking-widest">Intereses Recibidos 📈</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <div class="overflow-y-auto max-h-[420px]">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="sticky top-0 z-10">
+                                    <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest bg-gray-50/95 backdrop-blur-sm">
+                                        <th class="p-4">Fecha</th>
+                                        <th class="p-4">Concepto</th>
+                                        <th class="p-4">Cuenta</th>
+                                        <th class="p-4">Importe</th>
+                                        <th class="p-4 text-right">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invInterestsTableBody" class="text-sm divide-y divide-gray-50">
+                                    <tr><td colspan="5" class="p-10 text-center text-gray-300">No hay intereses registrados.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1552,9 +1552,10 @@ const initInvFilters = () => {
 const isInvestmentTx = (t) => {
     if (!t) return false;
     if (t.type === 'dividend' || t.subType === 'dividend') return true;
+    if (t.type === 'interest' || t.subType === 'interest') return true;
     const cat = (t.category || '').toLowerCase();
     const desc = (t.description || '').toLowerCase();
-    return cat.includes('invers') || cat.includes('dividend') || desc.includes('dividendo');
+    return cat.includes('invers') || cat.includes('dividend') || cat === 'intereses' || desc.includes('dividendo');
 };
 
 const isDividendTx = (t) => {
@@ -1563,6 +1564,13 @@ const isDividendTx = (t) => {
     const cat = (t.category || '').toLowerCase();
     const desc = (t.description || '').toLowerCase();
     return cat.includes('dividend') || desc.includes('dividendo');
+};
+
+const isInterestTx = (t) => {
+    if (!t) return false;
+    if (t.type === 'interest' || t.subType === 'interest') return true;
+    const cat = (t.category || '').toLowerCase();
+    return cat === 'intereses';
 };
 
 const renderInvestments = () => {
@@ -1593,6 +1601,7 @@ const renderInvestments = () => {
 
     renderInvestmentHistory(filtered);
     renderClosedOperations(investments);
+    renderInterestsTable(investments);
     updateInvestmentSummary(investments);
 };
 
@@ -1606,6 +1615,9 @@ const renderInvestmentHistory = (txs) => {
     }
 
     tbody.innerHTML = txs.map(t => {
+        // Excluir intereses del historial principal (tienen su propia tabla)
+        if (isInterestTx(t)) return '';
+
         const dateStr = t.date ? new Date(t.date.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '–';
         const isDiv = isDividendTx(t);
         const isInc = t.type === 'income';
@@ -1653,7 +1665,7 @@ const renderInvestmentHistory = (txs) => {
         document.getElementById('invDescription').value = t.description || '';
         document.getElementById('invShares').value = t.shares || '';
         document.getElementById('invAmount').value = t.amount || '';
-        document.getElementById('invType').value = isDividendTx(t) ? 'dividend' : (t.type || 'expense');
+        document.getElementById('invType').value = isDividendTx(t) ? 'dividend' : isInterestTx(t) ? 'interest' : (t.type || 'expense');
         document.getElementById('invAccount').value = t.account || '';
         document.getElementById('invDate').value = t.date?.seconds ? new Date(t.date.seconds * 1000).toISOString().split('T')[0] : '';
 
@@ -1676,9 +1688,11 @@ const renderClosedOperations = (allInv) => {
     if (!tbody) return;
 
     // Agrupar ÚNICAMENTE por Op ID explícito (sin deducción automática)
+    // Los intereses se excluyen de esta tabla (tienen su propia tabla)
     const groups = {};
     allInv.forEach(t => {
         if (!t.opId || !t.opId.trim()) return;
+        if (isInterestTx(t)) return; // Los intereses van a su propia tabla
         const opId = t.opId.trim();
 
         if (!groups[opId]) groups[opId] = { buys: [], sells: [], dividends: [], ticker: t.ticker || t.description, description: t.description };
@@ -1743,15 +1757,80 @@ const renderClosedOperations = (allInv) => {
     }).join('');
 };
 
+const renderInterestsTable = (allInv) => {
+    const tbody = document.getElementById('invInterestsTableBody');
+    if (!tbody) return;
+
+    const interests = allInv
+        .filter(isInterestTx)
+        .sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
+
+    if (!interests.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-10 text-center text-gray-300">No hay intereses registrados.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = interests.map(t => {
+        const dateStr = t.date ? new Date(t.date.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '–';
+        return `
+            <tr class="border-b border-gray-50 hover:bg-blue-50/30 transition">
+                <td class="p-4 text-xs text-gray-500">${dateStr}</td>
+                <td class="p-4">
+                    <div class="font-bold text-gray-800">${t.description || '–'}</div>
+                    ${t.opId ? `<div class="text-[10px] text-blue-400 font-black uppercase tracking-widest">ID: ${t.opId}</div>` : ''}
+                </td>
+                <td class="p-4 text-[10px] text-gray-400 font-bold">${t.account || '–'}</td>
+                <td class="p-4">
+                    <span class="font-black text-blue-600">+${(t.amount || 0).toFixed(2)}€</span>
+                </td>
+                <td class="p-4 text-right flex justify-end gap-2">
+                    <button class="edit-interest-btn text-xs font-black text-indigo-400 hover:text-indigo-600 transition" data-id="${t.id}">Editar</button>
+                    <button class="delete-interest-btn text-xs font-black text-gray-300 hover:text-red-500 transition" data-id="${t.id}">✕</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.querySelectorAll('.edit-interest-btn').forEach(btn => btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.dataset.id;
+        const t = allUserTransactions.find(tx => tx.id === id);
+        if (!t) return;
+        document.getElementById('invId').value = t.id;
+        document.getElementById('invOpId').value = t.opId || '';
+        document.getElementById('invTicker').value = t.ticker || '';
+        document.getElementById('invDescription').value = t.description || '';
+        document.getElementById('invShares').value = t.shares || '';
+        document.getElementById('invAmount').value = t.amount || '';
+        document.getElementById('invType').value = 'interest';
+        document.getElementById('invAccount').value = t.account || '';
+        document.getElementById('invDate').value = t.date?.seconds ? new Date(t.date.seconds * 1000).toISOString().split('T')[0] : '';
+        document.getElementById('investmentForm').querySelector('button[type="submit"]').textContent = 'Actualizar';
+        document.getElementById('cancelInvEditBtn').classList.remove('hidden');
+        document.getElementById('invOpId').focus();
+    }));
+
+    tbody.querySelectorAll('.delete-interest-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+        if (confirm('¿Eliminar este interés?')) {
+            await deleteDoc(doc(db, dbCollections.transactions, e.currentTarget.dataset.id));
+            showDeleteToast();
+        }
+    }));
+};
+
 const updateInvestmentSummary = (investments) => {
     const groups = {};
     let totalDividendsAll = 0;
+    let totalInterestsAll = 0;
 
     investments.forEach(t => {
         if (isDividendTx(t)) {
             totalDividendsAll += t.amount || 0;
         }
+        if (isInterestTx(t)) {
+            totalInterestsAll += t.amount || 0;
+        }
         if (!t.opId || !t.opId.trim()) return;
+        if (isInterestTx(t)) return;
         const opId = t.opId.trim();
 
         if (!groups[opId]) groups[opId] = { buys: [], sells: [], dividends: [] };
@@ -1787,9 +1866,10 @@ const updateInvestmentSummary = (investments) => {
     }
 
     const divEl = document.getElementById('invTotalDividends');
-    if (divEl) {
-        divEl.textContent = `${totalDividendsAll.toFixed(2)}€`;
-    }
+    if (divEl) divEl.textContent = `${totalDividendsAll.toFixed(2)}€`;
+
+    const intEl = document.getElementById('invTotalInterests');
+    if (intEl) intEl.textContent = `${totalInterestsAll.toFixed(2)}€`;
 
     const roiEl = document.getElementById('invAvgROI');
     if (roiEl) roiEl.textContent = closedCount > 0 ? `${(totalRoiSum / closedCount).toFixed(1)}%` : '–';
@@ -1843,15 +1923,28 @@ document.getElementById('investmentForm')?.addEventListener('submit', async (e) 
     }
 
     const sharesInput = parseFloat(document.getElementById('invShares').value);
+
+    // Determinar tipo y categoría según el tipo de operación
+    let txType = type;
+    let txCategory = 'Inversiones';
+    if (type === 'dividend') {
+        txType = 'income';
+        txCategory = 'Dividendo';
+    } else if (type === 'interest') {
+        txType = 'income';
+        txCategory = 'Intereses';
+    }
+
     const data = {
         opId,
         ticker,
         description: document.getElementById('invDescription').value.trim(),
         shares: isNaN(sharesInput) ? 0 : sharesInput,
         amount: parseFloat(document.getElementById('invAmount').value),
-        type,
+        type: txType,
+        subType: (type === 'dividend' || type === 'interest') ? type : undefined,
         date: new Date(document.getElementById('invDate').value),
-        category: 'Inversiones',
+        category: txCategory,
         account: document.getElementById('invAccount').value,
         accountingBook: userAccountingBooks[0] || 'Principal',
         userId,

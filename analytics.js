@@ -25,7 +25,7 @@ export const calcHealthScore = (transactions) => {
     const isExcludedCat = (cat) => {
         if (!cat) return false;
         const c = cat.toLowerCase();
-        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend');
+        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend') || c === 'intereses';
     };
 
     const income = txMonth.filter(t => t.type === 'income' && !isExcludedCat(t.category)).reduce((s, t) => s + t.amount, 0);
@@ -58,7 +58,7 @@ export const calcEndOfMonthPrediction = (transactions) => {
     const isExcludedCat = (cat) => {
         if (!cat) return false;
         const c = cat.toLowerCase();
-        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend');
+        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend') || c === 'intereses';
     };
 
     const txMonth = transactions.filter(t => {
@@ -84,7 +84,7 @@ export const calcMonthComparison = (transactions) => {
     const isExcludedCat = (cat) => {
         if (!cat) return false;
         const c = cat.toLowerCase();
-        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend');
+        return c.includes('transferencia') || c.includes('saldo inicial') || c.includes('invers') || c.includes('dividend') || c === 'intereses';
     };
 
     const filterMonth = (m, y) => transactions.filter(t => {
