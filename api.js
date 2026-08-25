@@ -125,7 +125,7 @@ Si te preguntan por transacciones específicas (ej: "cuánto gasté en X", "en q
                 });
 
                 chatHistory.push({
-                    role: 'function',
+                    role: 'user',
                     parts: [{
                         functionResponse: {
                             name: "filter_transactions",

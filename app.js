@@ -390,15 +390,27 @@ const renderTransactionsTable = (txs) => {
         const rowClass = compactMode ? 'compact-row' : '';
         const subTxs = t.subTransactions || [];
         const hasSubTxs = subTxs.length > 0;
+        const totalRecovered = subTxs.reduce((s, st) => s + (st.amount || 0), 0);
         const netAmt = effectiveAmount(t);
         const recovered = t.amount - netAmt;
 
         // Amount display: show net if there are subtransactions
         let amountDisplay;
+        let isPositive = t.type === 'income';
         if (t.type === 'expense' && hasSubTxs) {
-            amountDisplay = `
-                <span class="line-through text-gray-300 text-xs mr-1">${t.amount?.toFixed(2)}€</span>
-                <span class="text-emerald-600 font-black">${netAmt.toFixed(2)}€</span>`;
+            if (totalRecovered > t.amount) {
+                isPositive = true;
+                const netGain = totalRecovered - t.amount;
+                amountDisplay = `
+                    <span class="line-through text-gray-300 text-xs mr-1">${t.amount?.toFixed(2)}€</span>
+                    <span class="text-emerald-600 font-black">+${netGain.toFixed(2)}€</span>`;
+            } else {
+                isPositive = false;
+                const netExpense = t.amount - totalRecovered;
+                amountDisplay = `
+                    <span class="line-through text-gray-300 text-xs mr-1">${t.amount?.toFixed(2)}€</span>
+                    <span class="text-red-500 font-black">-${netExpense.toFixed(2)}€</span>`;
+            }
         } else {
             amountDisplay = `${t.type === 'income' ? '+' : '-'}${t.amount?.toFixed(2)}€`;
         }
@@ -414,7 +426,7 @@ const renderTransactionsTable = (txs) => {
 
         return `<tr class="${rowClass} border-b border-gray-50 hover:bg-gray-50/50 transition">
             <td class="px-4 py-3 text-xs text-gray-500">${dateStr}</td>
-            <td class="px-4 py-3 text-sm font-black ${t.type === 'income' ? 'text-emerald-600' : 'text-red-500'}">${amountDisplay}</td>
+            <td class="px-4 py-3 text-sm font-black ${isPositive ? 'text-emerald-600' : 'text-red-500'}">${amountDisplay}</td>
             <td class="px-4 py-3 text-sm font-medium text-gray-800 max-w-xs truncate">${t.description || '–'} ${subtxBadge} ${t.receiptImage ? '<span title="Tiene ticket">📎</span>' : ''} ${(t.tags || []).map(tag => `<span class="text-[9px] bg-indigo-50 text-indigo-500 px-1.5 rounded-full font-bold">${tag}</span>`).join('')}</td>
             <td class="px-4 py-3 hidden md:table-cell">
                 <select class="inline-cat-select font-bold text-[10px] bg-gray-100/50 text-gray-600 px-2 py-0.5 rounded-full outline-none cursor-pointer" data-id="${t.id}">
