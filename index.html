@@ -522,16 +522,88 @@
 
                 <!-- Filters -->
                 <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-5">
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
-                        <input type="text" id="filterConcept" placeholder="Buscar por concepto..." class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-2 outline-none col-span-2 md:col-span-1">
-                        <input type="date" id="filterStartDate" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-2 outline-none">
-                        <input type="date" id="filterEndDate" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-2 outline-none">
-                        <select id="filterCategory" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-2 outline-none"></select>
-                        <select id="filterAccount" class="text-xs bg-gray-50 border border-gray-100 rounded-xl p-2 outline-none"></select>
+                    <!-- Fila 1: Concepto y Rango de Fechas -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 mb-2.5">
+                        <div class="relative">
+                            <input type="text" id="filterConcept" placeholder="Buscar concepto, notas, tags..." class="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl p-2.5 pl-8 outline-none focus:border-indigo-400 transition">
+                            <svg class="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 md:col-span-2">
+                            <div class="relative">
+                                <span class="text-[9px] font-black uppercase text-gray-400 absolute left-2.5 top-1">Desde</span>
+                                <input type="date" id="filterStartDate" class="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl pt-3.5 pb-1 px-2.5 outline-none focus:border-indigo-400 transition">
+                            </div>
+                            <div class="relative">
+                                <span class="text-[9px] font-black uppercase text-gray-400 absolute left-2.5 top-1">Hasta</span>
+                                <input type="date" id="filterEndDate" class="w-full text-xs bg-gray-50 border border-gray-100 rounded-xl pt-3.5 pb-1 px-2.5 outline-none focus:border-indigo-400 transition">
+                            </div>
+                        </div>
                     </div>
+
+                    <!-- Fila 2: Filtros Múltiples (Checklists Desplegables) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 mb-3">
+                        <!-- Multi-select Categorías -->
+                        <div class="relative" id="filterCategoryDropdown">
+                            <button type="button" id="filterCategoryBtn" class="w-full text-left text-xs bg-gray-50 hover:bg-gray-100/80 border border-gray-100 rounded-xl p-2.5 flex items-center justify-between outline-none transition cursor-pointer">
+                                <span class="truncate" id="filterCategoryLabel">Categorías: <span class="font-bold text-indigo-600">Todas</span></span>
+                                <svg class="w-3.5 h-3.5 text-gray-400 ml-1.5 shrink-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            <div id="filterCategoryMenu" class="hidden absolute left-0 top-full mt-1.5 w-64 md:w-72 bg-white border border-gray-100 rounded-2xl shadow-xl p-3 z-50">
+                                <div class="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                                    <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Categorías</span>
+                                    <div class="flex gap-2">
+                                        <button type="button" id="filterCategorySelectAll" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">Todas</button>
+                                        <span class="text-gray-300">|</span>
+                                        <button type="button" id="filterCategoryClearAll" class="text-[10px] font-bold text-gray-400 hover:text-gray-600">Limpiar</button>
+                                    </div>
+                                </div>
+                                <div id="filterCategoryList" class="max-h-52 overflow-y-auto space-y-0.5 scrollbar-thin pr-1"></div>
+                            </div>
+                        </div>
+
+                        <!-- Multi-select Cuentas -->
+                        <div class="relative" id="filterAccountDropdown">
+                            <button type="button" id="filterAccountBtn" class="w-full text-left text-xs bg-gray-50 hover:bg-gray-100/80 border border-gray-100 rounded-xl p-2.5 flex items-center justify-between outline-none transition cursor-pointer">
+                                <span class="truncate" id="filterAccountLabel">Cuentas: <span class="font-bold text-indigo-600">Todas</span></span>
+                                <svg class="w-3.5 h-3.5 text-gray-400 ml-1.5 shrink-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            <div id="filterAccountMenu" class="hidden absolute left-0 top-full mt-1.5 w-64 md:w-72 bg-white border border-gray-100 rounded-2xl shadow-xl p-3 z-50">
+                                <div class="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                                    <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Cuentas</span>
+                                    <div class="flex gap-2">
+                                        <button type="button" id="filterAccountSelectAll" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">Todas</button>
+                                        <span class="text-gray-300">|</span>
+                                        <button type="button" id="filterAccountClearAll" class="text-[10px] font-bold text-gray-400 hover:text-gray-600">Limpiar</button>
+                                    </div>
+                                </div>
+                                <div id="filterAccountList" class="max-h-52 overflow-y-auto space-y-0.5 scrollbar-thin pr-1"></div>
+                            </div>
+                        </div>
+
+                        <!-- Multi-select Libro Contable -->
+                        <div class="relative" id="filterBookDropdown">
+                            <button type="button" id="filterBookBtn" class="w-full text-left text-xs bg-gray-50 hover:bg-gray-100/80 border border-gray-100 rounded-xl p-2.5 flex items-center justify-between outline-none transition cursor-pointer">
+                                <span class="truncate" id="filterBookLabel">Libros: <span class="font-bold text-indigo-600">Todos</span></span>
+                                <svg class="w-3.5 h-3.5 text-gray-400 ml-1.5 shrink-0 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            <div id="filterBookMenu" class="hidden absolute left-0 md:left-auto md:right-0 top-full mt-1.5 w-64 md:w-72 bg-white border border-gray-100 rounded-2xl shadow-xl p-3 z-50">
+                                <div class="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                                    <span class="text-[10px] font-black uppercase tracking-wider text-gray-400">Libros Contables</span>
+                                    <div class="flex gap-2">
+                                        <button type="button" id="filterBookSelectAll" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">Todos</button>
+                                        <span class="text-gray-300">|</span>
+                                        <button type="button" id="filterBookClearAll" class="text-[10px] font-bold text-gray-400 hover:text-gray-600">Limpiar</button>
+                                    </div>
+                                </div>
+                                <div id="filterBookList" class="max-h-52 overflow-y-auto space-y-0.5 scrollbar-thin pr-1"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fila 3: Botones de Acción -->
                     <div class="flex gap-2">
-                        <button id="applyFiltersBtn" class="flex-1 text-white text-xs font-bold py-2 rounded-xl" style="background:rgb(var(--accent))">Filtrar</button>
-                        <button id="clearFiltersBtn" class="px-4 bg-gray-100 text-gray-400 text-xs font-bold py-2 rounded-xl">Reset</button>
+                        <button id="applyFiltersBtn" class="flex-1 text-white text-xs font-bold py-2.5 rounded-xl shadow-sm transition active:scale-95" style="background:rgb(var(--accent))">Aplicar Filtros</button>
+                        <button id="clearFiltersBtn" class="px-5 bg-gray-100 hover:bg-gray-200 text-gray-500 text-xs font-bold py-2.5 rounded-xl transition">Reset</button>
                     </div>
                 </div>
 

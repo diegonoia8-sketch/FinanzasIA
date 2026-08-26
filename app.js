@@ -145,6 +145,122 @@ const setupRealtimeListeners = (uid) => {
 };
 
 
+// ─── MULTI-SELECT FILTER HELPERS ─────────────────────────────────────────────
+const updateDropdownLabel = (type) => {
+    let checkboxes, labelElem, defaultName;
+    if (type === 'category') {
+        checkboxes = document.querySelectorAll('.category-filter-cb');
+        labelElem = document.getElementById('filterCategoryLabel');
+        defaultName = 'Categorías';
+    } else if (type === 'account') {
+        checkboxes = document.querySelectorAll('.account-filter-cb');
+        labelElem = document.getElementById('filterAccountLabel');
+        defaultName = 'Cuentas';
+    } else if (type === 'book') {
+        checkboxes = document.querySelectorAll('.book-filter-cb');
+        labelElem = document.getElementById('filterBookLabel');
+        defaultName = 'Libros';
+    }
+    if (!labelElem || !checkboxes.length) return;
+
+    const total = checkboxes.length;
+    const checked = Array.from(checkboxes).filter(cb => cb.checked);
+
+    if (checked.length === total) {
+        labelElem.innerHTML = `<span class="text-gray-500">${defaultName}:</span> <span class="font-bold text-indigo-600">Todas</span>`;
+    } else if (checked.length === 0) {
+        labelElem.innerHTML = `<span class="text-gray-500">${defaultName}:</span> <span class="font-bold text-gray-400">Ninguna</span>`;
+    } else if (checked.length === 1) {
+        labelElem.innerHTML = `<span class="text-gray-500">${defaultName}:</span> <span class="font-bold text-indigo-600 truncate max-w-[90px] inline-block align-bottom">${checked[0].value}</span>`;
+    } else {
+        labelElem.innerHTML = `<span class="text-gray-500">${defaultName}:</span> <span class="font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full text-[10px]">${checked.length} selec.</span>`;
+    }
+};
+
+const renderMultiSelectOptions = (containerId, items, className, type) => {
+    const listEl = document.getElementById(containerId);
+    if (!listEl) return;
+
+    const currentChecked = new Set(
+        Array.from(listEl.querySelectorAll(`.${className}:checked`)).map(cb => cb.value)
+    );
+    const hasPriorSelection = listEl.children.length > 0;
+
+    listEl.innerHTML = items.map(item => {
+        const isChecked = hasPriorSelection ? currentChecked.has(item) : true;
+        return `
+            <label class="flex items-center gap-2.5 px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-slate-800/60 rounded-xl cursor-pointer transition select-none text-xs">
+                <input type="checkbox" value="${item}" class="${className} rounded text-indigo-600 focus:ring-0 cursor-pointer w-4 h-4" ${isChecked ? 'checked' : ''}>
+                <span class="text-gray-700 font-medium truncate">${item}</span>
+            </label>
+        `;
+    }).join('');
+
+    listEl.querySelectorAll(`.${className}`).forEach(cb => {
+        cb.addEventListener('change', () => {
+            updateDropdownLabel(type);
+            applyFiltersAndRender();
+        });
+    });
+
+    updateDropdownLabel(type);
+};
+
+const setupMultiSelectDropdowns = () => {
+    const dropdowns = [
+        { btn: 'filterCategoryBtn', menu: 'filterCategoryMenu', selectAll: 'filterCategorySelectAll', clearAll: 'filterCategoryClearAll', cbClass: 'category-filter-cb', type: 'category' },
+        { btn: 'filterAccountBtn', menu: 'filterAccountMenu', selectAll: 'filterAccountSelectAll', clearAll: 'filterAccountClearAll', cbClass: 'account-filter-cb', type: 'account' },
+        { btn: 'filterBookBtn', menu: 'filterBookMenu', selectAll: 'filterBookSelectAll', clearAll: 'filterBookClearAll', cbClass: 'book-filter-cb', type: 'book' }
+    ];
+
+    dropdowns.forEach(({ btn, menu, selectAll, clearAll, cbClass, type }) => {
+        const btnEl = document.getElementById(btn);
+        const menuEl = document.getElementById(menu);
+        const selectAllEl = document.getElementById(selectAll);
+        const clearAllEl = document.getElementById(clearAll);
+
+        if (btnEl && menuEl) {
+            btnEl.onclick = (e) => {
+                e.stopPropagation();
+                const isHidden = menuEl.classList.contains('hidden');
+                dropdowns.forEach(d => {
+                    const otherMenu = document.getElementById(d.menu);
+                    if (otherMenu) otherMenu.classList.add('hidden');
+                });
+                if (isHidden) menuEl.classList.remove('hidden');
+                else menuEl.classList.add('hidden');
+            };
+
+            menuEl.onclick = (e) => {
+                e.stopPropagation();
+            };
+        }
+
+        if (selectAllEl) {
+            selectAllEl.onclick = () => {
+                document.querySelectorAll(`.${cbClass}`).forEach(cb => cb.checked = true);
+                updateDropdownLabel(type);
+                applyFiltersAndRender();
+            };
+        }
+
+        if (clearAllEl) {
+            clearAllEl.onclick = () => {
+                document.querySelectorAll(`.${cbClass}`).forEach(cb => cb.checked = false);
+                updateDropdownLabel(type);
+                applyFiltersAndRender();
+            };
+        }
+    });
+
+    document.addEventListener('click', () => {
+        dropdowns.forEach(d => {
+            const m = document.getElementById(d.menu);
+            if (m) m.classList.add('hidden');
+        });
+    });
+};
+
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 const renderSettings = (settings) => {
     userCategories = settings.categories || [];
@@ -176,13 +292,16 @@ const renderSettings = (settings) => {
     populateSelectOptions('transferTo', userAccounts);
     populateSelectOptions('accountingBook', userAccountingBooks);
     populateSelectOptions('transferAccountingBook', userAccountingBooks);
-    populateSelectOptions('filterCategory', userCategories, true, 'Todas las categorías');
-    populateSelectOptions('filterAccount', userAccounts, true, 'Todas las cuentas');
     populateSelectOptions('csvDestAccount', userAccounts);
     populateSelectOptions('recurringCategory', catsExp);
     populateSelectOptions('recurringAccount', userAccounts);
     populateSelectOptions('recurringAccountingBook', userAccountingBooks);
     populateSelectOptions('invAccount', userAccounts);
+
+    // Renderizar checklists desplegables para el filtro de historial
+    renderMultiSelectOptions('filterCategoryList', userCategories, 'category-filter-cb', 'category');
+    renderMultiSelectOptions('filterAccountList', userAccounts, 'account-filter-cb', 'account');
+    renderMultiSelectOptions('filterBookList', userAccountingBooks, 'book-filter-cb', 'book');
 
     // Actualizar selector global del header (Desplegable Estilizado)
     const globalSel = document.getElementById('globalBookSelector');
@@ -482,17 +601,56 @@ const editTransaction = (id) => {
 };
 
 const applyFiltersAndRender = () => {
-    const s = document.getElementById('filterStartDate').value;
-    const e = document.getElementById('filterEndDate').value;
-    const cat = document.getElementById('filterCategory').value;
-    const acc = document.getElementById('filterAccount').value;
+    const s = document.getElementById('filterStartDate')?.value;
+    const e = document.getElementById('filterEndDate')?.value;
     const concept = document.getElementById('filterConcept')?.value?.toLowerCase();
 
-    let filtered = [...getActiveTxs()];
+    // Checkbox selections
+    const selectedCategories = Array.from(document.querySelectorAll('.category-filter-cb:checked')).map(cb => cb.value);
+    const totalCategories = document.querySelectorAll('.category-filter-cb').length;
+    const hasCategoryFilter = totalCategories > 0 && selectedCategories.length < totalCategories;
+
+    const selectedAccounts = Array.from(document.querySelectorAll('.account-filter-cb:checked')).map(cb => cb.value);
+    const totalAccounts = document.querySelectorAll('.account-filter-cb').length;
+    const hasAccountFilter = totalAccounts > 0 && selectedAccounts.length < totalAccounts;
+
+    const selectedBooks = Array.from(document.querySelectorAll('.book-filter-cb:checked')).map(cb => cb.value);
+    const totalBooks = document.querySelectorAll('.book-filter-cb').length;
+    const hasBookFilter = totalBooks > 0 && selectedBooks.length < totalBooks;
+
+    // We start from allUserTransactions (or activeBook if all books selected and activeBook !== 'all')
+    let baseTxs = allUserTransactions;
+    if (hasBookFilter) {
+        if (selectedBooks.length === 0) {
+            baseTxs = [];
+        } else {
+            baseTxs = baseTxs.filter(t => selectedBooks.includes(t.accountingBook || userAccountingBooks[0] || 'Principal'));
+        }
+    } else if (activeBook !== 'all') {
+        baseTxs = baseTxs.filter(t => t.accountingBook === activeBook);
+    }
+
+    let filtered = [...baseTxs];
+
     if (s) { const sd = new Date(s); sd.setHours(0, 0, 0, 0); filtered = filtered.filter(t => t.date?.toDate?.() >= sd); }
     if (e) { const ed = new Date(e); ed.setHours(23, 59, 59, 999); filtered = filtered.filter(t => t.date?.toDate?.() <= ed); }
-    if (cat) filtered = filtered.filter(t => t.category === cat);
-    if (acc) filtered = filtered.filter(t => t.account === acc);
+
+    if (hasCategoryFilter) {
+        if (selectedCategories.length === 0) {
+            filtered = [];
+        } else {
+            filtered = filtered.filter(t => selectedCategories.includes(t.category));
+        }
+    }
+
+    if (hasAccountFilter) {
+        if (selectedAccounts.length === 0) {
+            filtered = [];
+        } else {
+            filtered = filtered.filter(t => selectedAccounts.includes(t.account));
+        }
+    }
+
     if (concept) {
         filtered = filtered.filter(t =>
             (t.description || '').toLowerCase().includes(concept) ||
@@ -685,13 +843,18 @@ document.getElementById('accountingBookForm').addEventListener('submit', async (
 });
 
 // Filters & Export
+setupMultiSelectDropdowns();
 document.getElementById('applyFiltersBtn').addEventListener('click', applyFiltersAndRender);
 document.getElementById('clearFiltersBtn').addEventListener('click', () => { 
-    document.getElementById('filterStartDate').value = ''; 
-    document.getElementById('filterEndDate').value = ''; 
-    document.getElementById('filterConcept').value = ''; 
-    document.getElementById('filterCategory').value = '';
-    document.getElementById('filterAccount').value = '';
+    if (document.getElementById('filterStartDate')) document.getElementById('filterStartDate').value = ''; 
+    if (document.getElementById('filterEndDate')) document.getElementById('filterEndDate').value = ''; 
+    if (document.getElementById('filterConcept')) document.getElementById('filterConcept').value = ''; 
+    document.querySelectorAll('.category-filter-cb').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.account-filter-cb').forEach(cb => cb.checked = true);
+    document.querySelectorAll('.book-filter-cb').forEach(cb => cb.checked = true);
+    updateDropdownLabel('category');
+    updateDropdownLabel('account');
+    updateDropdownLabel('book');
     applyFiltersAndRender(); 
 });
 document.getElementById('filterConcept')?.addEventListener('input', applyFiltersAndRender);
