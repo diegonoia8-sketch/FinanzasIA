@@ -168,7 +168,11 @@ export const renderCashFlowChart = (transactions) => {
             else if (t.type === 'expense' && !['Transferencia','Inversiones'].includes(t.category)) monthlyData[key].expense += effectiveAmount(t);
         }
     });
-    const sortedKeys = Object.keys(monthlyData).sort();
+    const sortedKeys = Object.keys(monthlyData).sort((a, b) => {
+        const [yearA, monthA] = a.split('-').map(Number);
+        const [yearB, monthB] = b.split('-').map(Number);
+        return yearA - yearB || monthA - monthB;
+    });
     const savings = sortedKeys.map(k => monthlyData[k].income - monthlyData[k].expense);
     const colors = savings.map(s => s >= 0 ? 'rgba(79, 70, 229, 0.8)' : 'rgba(239, 68, 68, 0.8)');
 
